@@ -26,7 +26,7 @@ def parse_args():
     )
     parser.add_argument(
         "--model",
-        default="yolov8n.pt",
+        default="../models/yolov8n.pt",
         help="Path to (or name of) the YOLO model weights (default: yolov8n.pt).",
     )
     parser.add_argument(

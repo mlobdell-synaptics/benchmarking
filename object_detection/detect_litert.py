@@ -58,7 +58,7 @@ def parse_args():
     )
     parser.add_argument(
         "--model",
-        default="yolov8n_int8.tflite",
+        default="../models/yolov8n_int8.tflite",
         help="Path to the YOLOv8 .tflite model (default: yolov8n_int8.tflite).",
     )
     parser.add_argument(
