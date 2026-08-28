@@ -20,9 +20,8 @@ inference. Pass `--metrics-json PATH` to also write everything to JSON.
 sudo apt update && sudo apt upgrade -y
 ```
 
-## Enter directory and set up virtual environment
+## Set up virtual environment
 ```
-cd object_detection
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 pip install --upgrade pip
@@ -82,6 +81,7 @@ loaded for class names by default.
 
 ## detect_ultralytics.py
 ```
+cd object_detection
 python3 detect_ultralytics.py \
     --model yolov8n.pt \
     --source 0 \

@@ -12,10 +12,9 @@ sudo apt install -y \
     ninja-build
 ```
 
-## Enter directory and set up virtual environment
+## Set up virtual environment
 
 ```
-cd llm
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 ```
@@ -36,6 +35,7 @@ python3 -m pip install --no-cache-dir llama-cpp-python
 
 ## Post Training Quantization (PTQ)
 ```
+cd models
 wget https://huggingface.co/jaewoo49/gemm-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
 
 wget https://huggingface.com/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-270m-it-Q8_0.gguf
@@ -54,6 +54,7 @@ Basic benchmark (TTFT, generation speed, end-to-end speed per question, plus a
 summary). Results are written to JSON.
 
 ```
+cd llm
 python3 llm_benchmark.py \
     --model gemma-3-270m-it-[ver].gguf \
     --threads 4 \
