@@ -15,13 +15,32 @@ inference. Pass `--metrics-json PATH` to also write everything to JSON.
 
 # Setup
 
-## Update system
+### Generating the YoloV8n INT8 model
+
+This needs to be done on a Linux x86 or macOS with Python 3.12.
+
+```
+cd object_detection
+python3 -m venv .venv --system-site-packages
+source .venv/bin/activate
+pip install --upgrade pip
+```
+
+```
+python -m pip install --upgrade --force-reinstall \
+  "torch==2.12.1" \
+  "torchvision==0.27.1"
+```
+
+
+## Update target system
 ```
 sudo apt update && sudo apt upgrade -y
 ```
 
-## Set up virtual environment
+## Enter directory and set up virtual environment
 ```
+cd object_detection
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 pip install --upgrade pip
@@ -55,6 +74,9 @@ Enable I2C (`sudo raspi-config` -> Interface Options -> I2C) and wire the INA219
 in series with the Pi's 5 V USB-C input. Bus, address, shunt value and sample
 rate are configured at the top of `../utils/pwr_meas.py`.
 
+
+
+
 ## Connect USB camera
 
 ```
@@ -81,7 +103,6 @@ loaded for class names by default.
 
 ## detect_ultralytics.py
 ```
-cd object_detection
 python3 detect_ultralytics.py \
     --model yolov8n.pt \
     --source 0 \
