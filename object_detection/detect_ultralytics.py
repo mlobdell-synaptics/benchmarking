@@ -1,23 +1,10 @@
 import argparse
 import json
-import statistics
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
-try:
-    import psutil
-
-    _PROC = psutil.Process()
-except Exception:  # psutil not installed on the target
-    psutil = None
-    _PROC = None
-
-try:
-    import resource
-except ImportError:  # not available on Windows
-    resource = None
+from bench_common import build_metrics, print_metrics, rss_mb
 
 
 def parse_args():
@@ -101,133 +88,6 @@ def parse_args():
         "dynamic (idle-subtracted) energy per inference.",
     )
     return parser.parse_args()
-
-
-def rss_mb():
-    """Current resident set size of this process in MiB, or None if unavailable."""
-    if _PROC is not None:
-        return _PROC.memory_info().rss / (1024 * 1024)
-    return None
-
-
-def peak_rss_mb():
-    """Peak resident set size of this process in MiB, or None if unavailable."""
-    if resource is not None:
-        maxrss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        # Linux reports KiB, macOS/BSD report bytes.
-        import sys
-
-        return maxrss / 1024 if sys.platform == "linux" else maxrss / (1024 * 1024)
-    return None
-
-
-def build_metrics(
-    args,
-    inference_times_ms,
-    loop_times_ms,
-    rss_samples_mb,
-    elapsed_s,
-    power_result=None,
-    idle_power_mw=None,
-):
-    frames = len(inference_times_ms)
-    metrics = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "model": args.model,
-        "source": args.source,
-        "resolution": f"{args.width}x{args.height}",
-        "frames_measured": frames,
-        "warmup_frames": args.warmup,
-        "elapsed_seconds": round(elapsed_s, 3),
-    }
-
-    if frames:
-        ordered = sorted(inference_times_ms)
-        metrics["inference_ms"] = {
-            "average": round(statistics.fmean(inference_times_ms), 3),
-            "min": round(ordered[0], 3),
-            "peak": round(ordered[-1], 3),
-            "median": round(statistics.median(inference_times_ms), 3),
-            "p95": round(ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))], 3),
-            "stdev": round(statistics.pstdev(inference_times_ms), 3),
-        }
-        avg_loop_ms = statistics.fmean(loop_times_ms)
-        metrics["fps"] = {
-            "inference_only": round(1000 / metrics["inference_ms"]["average"], 2),
-            "end_to_end": round(1000 / avg_loop_ms, 2) if avg_loop_ms > 0 else None,
-            "throughput": round(frames / elapsed_s, 2) if elapsed_s > 0 else None,
-        }
-
-    mem = {"peak_rss_mb": None if peak_rss_mb() is None else round(peak_rss_mb(), 1)}
-    if rss_samples_mb:
-        mem["average_rss_mb"] = round(statistics.fmean(rss_samples_mb), 1)
-        mem["max_sampled_rss_mb"] = round(max(rss_samples_mb), 1)
-    metrics["memory"] = mem
-
-    if power_result is not None and frames:
-        energy_total_mj = power_result.total_energy_mj
-        power = {
-            "avg_power_mw": round(power_result.total_avg_power_mw, 1),
-            "peak_power_mw": round(power_result.total_peak_power_mw, 1),
-            "min_power_mw": round(sum(power_result.min_power_mw.values()), 1),
-            "sample_rate_hz": round(power_result.sample_rate_hz, 1),
-            "samples": power_result.n_samples,
-            "energy_total_j": round(energy_total_mj / 1000, 4),
-            "energy_per_inference_mj": round(energy_total_mj / frames, 3),
-        }
-        if idle_power_mw is not None:
-            net_mj = energy_total_mj - idle_power_mw * power_result.duration_s
-            power["idle_power_mw"] = round(idle_power_mw, 1)
-            power["dynamic_energy_per_inference_mj"] = round(
-                max(0.0, net_mj) / frames, 3
-            )
-        metrics["power"] = power
-
-    return metrics
-
-
-def print_metrics(metrics):
-    print("\n===== Benchmark metrics =====")
-    print(f"Frames measured:      {metrics['frames_measured']} "
-          f"(after {metrics['warmup_frames']} warm-up)")
-    print(f"Elapsed:              {metrics['elapsed_seconds']:.2f} s")
-
-    inf = metrics.get("inference_ms")
-    if inf:
-        print(f"Inference avg:        {inf['average']:.2f} ms")
-        print(f"Inference peak:       {inf['peak']:.2f} ms")
-        print(f"Inference min:        {inf['min']:.2f} ms")
-        print(f"Inference median:     {inf['median']:.2f} ms")
-        print(f"Inference p95:        {inf['p95']:.2f} ms")
-
-    fps = metrics.get("fps")
-    if fps:
-        print(f"FPS (inference only): {fps['inference_only']:.2f}")
-        if fps["end_to_end"] is not None:
-            print(f"FPS (end-to-end):     {fps['end_to_end']:.2f}")
-        if fps["throughput"] is not None:
-            print(f"FPS (throughput):     {fps['throughput']:.2f}")
-
-    mem = metrics.get("memory", {})
-    if mem.get("average_rss_mb") is not None:
-        print(f"Memory avg RSS:       {mem['average_rss_mb']:.1f} MiB")
-        print(f"Memory max RSS:       {mem['max_sampled_rss_mb']:.1f} MiB")
-    if mem.get("peak_rss_mb") is not None:
-        print(f"Memory peak RSS:      {mem['peak_rss_mb']:.1f} MiB")
-
-    pwr = metrics.get("power")
-    if pwr:
-        print(f"Power avg:            {pwr['avg_power_mw']:.1f} mW")
-        print(f"Power peak:           {pwr['peak_power_mw']:.1f} mW")
-        print(f"Power min:            {pwr['min_power_mw']:.1f} mW")
-        if "idle_power_mw" in pwr:
-            print(f"Power idle:           {pwr['idle_power_mw']:.1f} mW")
-        print(f"Energy total:         {pwr['energy_total_j']:.4f} J "
-              f"({pwr['samples']} samples @ {pwr['sample_rate_hz']:.0f} Hz)")
-        print(f"Energy / inference:   {pwr['energy_per_inference_mj']:.3f} mJ")
-        if "dynamic_energy_per_inference_mj" in pwr:
-            print(f"  (idle-subtracted):  {pwr['dynamic_energy_per_inference_mj']:.3f} mJ")
-    print("=============================")
 
 
 def main():
@@ -359,10 +219,11 @@ def main():
     elapsed_s = (time.perf_counter() - start_time) if start_time is not None else 0.0
     metrics = build_metrics(
         args,
-        inference_times_ms,
-        loop_times_ms,
-        rss_samples_mb,
-        elapsed_s,
+        runtime="ultralytics",
+        inference_times_ms=inference_times_ms,
+        loop_times_ms=loop_times_ms,
+        rss_samples_mb=rss_samples_mb,
+        elapsed_s=elapsed_s,
         power_result=power_result,
         idle_power_mw=idle_power_mw,
     )

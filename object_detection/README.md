@@ -1,17 +1,27 @@
 # Object detection benchmarks
 
-Two benchmark scripts, same metrics and the same optional INA219 power
-measurement, different inference back ends:
+Benchmark scripts that share their metrics, capture loop, YOLOv8 decode/NMS and
+the optional INA219 power measurement (all in `bench_common.py`), differing only
+in the inference back end:
 
-| Script | Back end | Model | Notes |
+| Script | Back end | Model | Platform |
 | --- | --- | --- | --- |
-| `detect_ultralytics.py` | Ultralytics YOLOv8 (PyTorch, CPU) | `.pt` (e.g. `yolov8n.pt`) | The original reference path. |
-| `detect_litert.py` | LiteRT / TFLite | YOLOv8 `.tflite` (INT8 or float) | For quantized-model testing on the Pi. |
+| `detect_ultralytics.py` | Ultralytics YOLOv8 (PyTorch, CPU) | `.pt` (e.g. `yolov8n.pt`) | Pi 5 (reference path) |
+| `detect_litert.py` | LiteRT / TFLite (CPU) | YOLOv8 `.tflite` (INT8 or float) | Pi 5 **and** Astra SL2619 CPU |
+| `detect_torq.py` | Synaptics Torq runtime | YOLOv8 `.vmfb` (INT8) | Astra SL2619 Torq NPU (`--device torq`) or Torq CPU (`--device local-task`) |
 
-Both report per-run inference time (avg / min / peak / median / p95), FPS
-(inference-only, end-to-end, throughput), process memory (RSS), and — with
+`detect_litert.py` is deliberately the *same* script with the *same*
+`yolov8n_int8.tflite` on both the Pi 5 and the Astra Arm CPU — the SL2619 is a
+quad Cortex-A73, so `--threads 4` matches the Pi 5's quad core — so the CPU
+numbers are directly comparable. `detect_torq.py` then measures the NPU with the
+identical loop and metrics.
+
+Every script reports per-run inference time (avg / min / peak / median / p95),
+FPS (inference-only, end-to-end, throughput), process memory (RSS), and — with
 `--power` — average / peak / min board power, total energy, and energy per
-inference. Pass `--metrics-json PATH` to also write everything to JSON.
+inference. `detect_torq.py` additionally reports `device_inference_ms` (the
+runtime-reported NPU time, excluding host overhead). Pass `--metrics-json PATH`
+to also write everything to JSON.
 
 # Setup
 
@@ -65,14 +75,22 @@ For `detect_litert.py`:
 ```
 pip install --no-cache-dir ai-edge-litert      # or: tflite-runtime
 ```
+On the Astra SL2619 CPU this is the same install — `tflite-runtime` has an
+aarch64 wheel; `ai-edge-litert` also works.
 
-For `--power` on either script (INA219 over I2C):
+For `detect_torq.py` (Astra SL2619 only):
+```
+pip install --no-cache-dir torq-runtime        # or use the Astra SDK Python env
+```
+
+For `--power` on any script (INA219 over I2C):
 ```
 pip install --no-cache-dir smbus2
 ```
-Enable I2C (`sudo raspi-config` -> Interface Options -> I2C) and wire the INA219
-in series with the Pi's 5 V USB-C input. Bus, address, shunt value and sample
-rate are configured at the top of `../utils/pwr_meas.py`.
+On the Pi: enable I2C (`sudo raspi-config` -> Interface Options -> I2C) and wire
+the INA219 in series with the Pi's 5 V USB-C input. The same works on the Astra
+dev kit if an INA219 is wired in series with its 5 V input. Bus, address, shunt
+value and sample rate are configured at the top of `../utils/pwr_meas.py`.
 
 
 
@@ -99,6 +117,18 @@ This produces `yolov8n_full_integer_quant.tflite` (and metadata). Keep
 `labels.json` (the `{"names": {...}}` sidecar) next to `detect_litert.py`; it is
 loaded for class names by default.
 
+## Torq NPU (`.vmfb`)
+Download the pre-built Synaptics YOLOv8n Torq model + labels from Hugging Face:
+```
+python3 fetch_torq_model.py            # NPU model + labels.json
+python3 fetch_torq_model.py --cpu      # also the local-task (CPU) vmfb
+```
+This drops the files under
+`../models/Synaptics/yolov8-od-nano-320-int8-torq/`, the path `detect_torq.py`
+expects by default. The model's quantisation parameters are baked into
+`detect_torq.py`; override with `--in-scale/--in-zero/--out-scale/--out-zero`
+or a `<model>.quant.json` sidecar if you use a different export.
+
 # Run
 
 ## detect_ultralytics.py
@@ -112,10 +142,10 @@ python3 detect_ultralytics.py \
     --metrics-json ultra_run.json
 ```
 
-## detect_litert.py
+## detect_litert.py  (Pi 5 CPU, and Astra SL2619 CPU — identical command)
 ```
 python3 detect_litert.py \
-    --model yolov8n_full_integer_quant.tflite \
+    --model ../models/yolov8n_int8.tflite \
     --source 0 \
     --threads 4 \
     --conf 0.25 --iou 0.45 \
@@ -123,8 +153,30 @@ python3 detect_litert.py \
     --no-display \
     --metrics-json litert_run.json
 ```
+On the Astra, `--source` is usually a `/dev/videoN` path.
 
-## With power measurement (either script)
+## detect_torq.py  (Astra SL2619 Torq NPU)
+```
+python3 detect_torq.py \
+    --model ../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_8n_2.0.0_npu.vmfb \
+    --labels ../models/Synaptics/yolov8-od-nano-320-int8-torq/labels.json \
+    --source /dev/video0 \
+    --conf 0.25 --iou 0.45 \
+    --duration 60 \
+    --no-display \
+    --metrics-json torq_run.json
+```
+The script enables the NPU clock and pins the NPU to its max frequency for the
+run, restoring min on exit (`--no-npu-setup` to skip; needs root for the
+devfreq sysfs writes). Swap `--device local-task` (with the `--cpu` vmfb from
+`fetch_torq_model.py`) for a Torq-runtime CPU baseline. For a live preview with
+`--display` on the board, first:
+```
+export XDG_RUNTIME_DIR=/var/run/user/0
+export WAYLAND_DISPLAY=wayland-1
+```
+
+## With power measurement (any script)
 ```
 python3 detect_litert.py \
     --model yolov8n_full_integer_quant.tflite \
@@ -140,13 +192,12 @@ Press `q` to quit the preview window; use `--no-display` for headless runs
 
 # Options
 
-## Common to both scripts
+## Common to all scripts (`bench_common.add_common_args`)
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `--model` | `yolov8n.pt` / `yolov8n_int8.tflite` | Model path. |
 | `--source` | `0` | Camera index or video file path. |
-| `--width`, `--height` | see below | Camera capture resolution. |
+| `--width`, `--height` | `640x480` | Camera capture resolution. |
 | `--max-frames N` | run until `q` | Stop after N measured frames. |
 | `--duration SECS` | run until `q` | Stop after ~SECS seconds. |
 | `--warmup N` | 5 | Initial frames excluded from the metrics. |
@@ -155,22 +206,28 @@ Press `q` to quit the preview window; use `--no-display` for headless runs
 | `--power` | off | Measure board power with an INA219 over I2C. |
 | `--power-csv PATH` | off | Write every power sample to a CSV file. |
 | `--idle-seconds N` | 0 | Measure idle power for N s first; also report idle-subtracted energy per inference. |
+| `--conf` | 0.25 | Confidence threshold. |
+| `--iou` | 0.45 | IoU threshold for non-max suppression. |
+| `--labels PATH` | `labels.json` next to the script | Class names (`labels.json` or one name per line). |
 
-`--width`/`--height` default to `320x320` for `detect_ultralytics.py` and
-`640x480` for `detect_litert.py`.
-
-## detect_ultralytics.py only
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--conf` | Ultralytics default | Confidence threshold passed to the model. |
+`--model` is per-script (`yolov8n.pt` / `yolov8n_int8.tflite` /
+`…/yolo_8n_2.0.0_npu.vmfb`). `detect_ultralytics.py` keeps its own `--conf`
+(defaults to the Ultralytics model default) and does not take `--iou`/`--labels`.
 
 ## detect_litert.py only
 
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--imgsz` | inferred from the model | Model input size. |
-| `--threads` | 4 | Interpreter CPU threads. |
-| `--conf` | 0.25 | Confidence threshold (applied in post-processing). |
-| `--iou` | 0.45 | IoU threshold for non-max suppression. |
-| `--labels PATH` | `labels.json` next to the script | Class names (`labels.json` or one name per line). |
+| `--threads` | 4 | Interpreter CPU threads (Pi 5 / SL2619 core count). |
+
+## detect_torq.py only
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--imgsz` | 320 | Model input size. |
+| `--device` | `torq` | `torq` (NPU) or `local-task` (CPU vmfb). |
+| `--tda` | `dmabuf` | Torq buffer allocator: `dmabuf` or `cpu`. |
+| `--device-io` / `--no-device-io` | on | Preallocate inputs / keep outputs as device arrays. |
+| `--no-npu-setup` | off | Skip the NPU clock-enable + frequency pin. |
+| `--in-scale`, `--in-zero`, `--out-scale`, `--out-zero` | model defaults | Override quantisation parameters. |
