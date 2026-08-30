@@ -11,10 +11,10 @@ in the inference back end:
 | `detect_torq.py` | Synaptics Torq runtime | YOLOv8 `.vmfb` (INT8) | Astra SL2619 Torq NPU (`--device torq`) or Torq CPU (`--device local-task`) |
 
 `detect_litert.py` is deliberately the *same* script with the *same*
-`yolov8n_int8.tflite` on both the Pi 5 and the Astra Arm CPU — the SL2619 is a
-quad Cortex-A73, so `--threads 4` matches the Pi 5's quad core — so the CPU
-numbers are directly comparable. `detect_torq.py` then measures the NPU with the
-identical loop and metrics.
+`yolov8n_int8.tflite` on both the Pi 5 and the Astra Arm CPU, so the CPU numbers
+are directly comparable. Use one thread per core: `--threads 4` on the Pi 5
+(4x Cortex-A76), `--threads 2` on the SL2619 (2x Cortex-A73). `detect_torq.py`
+then measures the NPU with the identical loop and metrics.
 
 Every script reports per-run inference time (avg / min / peak / median / p95),
 FPS (inference-only, end-to-end, throughput), process memory (RSS), and — with
@@ -140,7 +140,7 @@ python3 detect_ultralytics.py \
     --metrics-json ultra_run.json
 ```
 
-## detect_litert.py  (Pi 5 CPU, and Astra SL2619 CPU — identical command)
+## detect_litert.py  (Pi 5 CPU, and Astra SL2619 CPU — same command)
 ```sh
 python3 detect_litert.py \
     --model ../models/yolov8n_int8.tflite \
@@ -151,7 +151,8 @@ python3 detect_litert.py \
     --no-display \
     --metrics-json litert_run.json
 ```
-On the Astra, `--source` is usually a `/dev/videoN` path.
+On the Astra SL2619 use `--threads 2` (2 cores) and a `/dev/videoN` path for
+`--source`.
 
 ## detect_torq.py  (Astra SL2619 Torq NPU)
 ```sh
@@ -217,7 +218,7 @@ Press `q` to quit the preview window; use `--no-display` for headless runs
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--imgsz` | inferred from the model | Model input size. |
-| `--threads` | 4 | Interpreter CPU threads (Pi 5 / SL2619 core count). |
+| `--threads` | 4 | Interpreter CPU threads. Pi 5 = 4; SL2619 = 2. |
 
 ## detect_torq.py only
 

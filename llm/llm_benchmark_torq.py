@@ -12,7 +12,7 @@ Model files come from https://huggingface.co/Synaptics/gemma-3-270m-it-torq via
 Example:
     python3 llm_benchmark_torq.py \
         --model ../models/Synaptics/gemma-3-270m-it-torq \
-        --threads 4 --max-tokens 128 \
+        --threads 2 --max-tokens 128 \
         --questions questions.txt --output gemma3_it_torq.json
 """
 
@@ -68,8 +68,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--threads",
         type=int,
-        default=max(1, min(4, os.cpu_count() or 1)),
-        help="CPU threads for the non-NPU parts of the graph. Default: up to 4.",
+        default=os.cpu_count() or 1,
+        help="CPU threads for the non-NPU parts of the graph. "
+        "Default: all cores (SL2619 = 2).",
     )
     parser.add_argument(
         "--max-tokens",

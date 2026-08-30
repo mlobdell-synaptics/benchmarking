@@ -2,8 +2,9 @@
 YOLOv8 INT8 (LiteRT / TFLite) object-detection benchmark.
 
 This is the CPU reference path. It runs the same `yolov8n_int8.tflite` on the
-Raspberry Pi 5 and on the Synaptics Astra SL2619 Arm CPU (quad Cortex-A73, so
-`--threads 4` matches the Pi 5's quad core) for an apples-to-apples comparison.
+Raspberry Pi 5 (4x Cortex-A76) and on the Synaptics Astra SL2619 Arm CPU
+(2x Cortex-A73) for an apples-to-apples comparison. Use `--threads 4` on the
+Pi 5 and `--threads 2` on the SL2619 (one thread per core).
 
 For the Astra Torq NPU, see `detect_torq.py` -- it shares everything in
 `bench_common.py` with this script.
@@ -46,7 +47,7 @@ def parse_args():
         "--threads",
         type=int,
         default=4,
-        help="Interpreter CPU threads (default: 4 -- the Pi 5 / SL2619 core count).",
+        help="Interpreter CPU threads (default: 4 = Pi 5 cores; use 2 on the SL2619).",
     )
     return parser.parse_args()
 

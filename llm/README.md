@@ -111,11 +111,12 @@ embeddings). A Qwen VMFB can be added later via `REPO_MAP` in that script
 ```sh
 python3 llm_benchmark_torq.py \
     --model ../models/Synaptics/gemma-3-270m-it-torq \
-    --threads 4 \
+    --threads 2 \
     --max-tokens 128 \
     --questions questions.txt \
     --output gemma3_it_torq.json
 ```
+(`--threads` defaults to the core count anyway — 2 on the SL2619.)
 
 The script enables the NPU clock and pins the NPU to max frequency for the run
 (restoring min on exit; `--no-npu-setup` to skip — needs root for the devfreq
