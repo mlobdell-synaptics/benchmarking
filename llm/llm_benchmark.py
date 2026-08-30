@@ -24,9 +24,10 @@ import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
-from llama_cpp import Llama
+if TYPE_CHECKING:  # import lazily in main() so llm_benchmark_torq.py can reuse
+    from llama_cpp import Llama  # this module's helpers without llama-cpp installed
 
 
 DEFAULT_QUESTIONS = [
@@ -50,6 +51,10 @@ class BenchmarkResult:
     total_seconds: float
     tokens_per_second: float
     end_to_end_tokens_per_second: float
+    # Populated only by llm_benchmark_torq.py: the Torq runtime's own timing,
+    # for cross-checking the wall-clock numbers above.
+    runner_ttft_seconds: float | None = None
+    runner_generation_seconds: float | None = None
     # Populated only when --power is active.
     avg_power_mw: float | None = None
     peak_power_mw: float | None = None
@@ -384,6 +389,8 @@ def build_summary(results: list[BenchmarkResult]) -> dict[str, float]:
 
 def main() -> int:
     args = parse_args()
+
+    from llama_cpp import Llama
 
     if not args.model.is_file():
         print(f"Error: model not found: {args.model}", file=sys.stderr)
