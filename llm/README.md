@@ -1,40 +1,27 @@
 # Setup 
 
-## Update system 
+## Update target system & activate virtual environment
 
-```
-sudo apt update
-sudo apt install -y \
-    python3-venv \
-    python3-dev \
-    build-essential \
-    cmake \
-    ninja-build
-```
+See top level [README.md](../README.md).
 
-## Set up virtual environment
-
+## Install dependencies
+```sh
+pip install --upgrade setuptools wheel
 ```
-python3 -m venv .venv --system-site-packages
-source .venv/bin/activate
-```
-
-## Upgrade pip, etc
-python3 -m pip install --upgrade pip setuptools wheel
 
 ## Set CMAKE args for building the llama-cpp wheel
 CMAKE_ARGS="-DGGML_NATIVE=ON" \
 CMAKE_BUILD_PARALLEL_LEVEL=4 \
 
 ## Install llama-cpp
-```
+```sh
 python3 -m pip install --no-cache-dir llama-cpp-python
 ```
 
 # Download models to test
 
 ## Post Training Quantization (PTQ)
-```
+```sh
 cd models
 wget https://huggingface.co/jaewoo49/gemm-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
 
@@ -42,7 +29,7 @@ wget https://huggingface.com/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-27
 ```
 
 ## Quantization Arware Training (QAT)
-```
+```sh
 wget https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/resolve/main/gemma-3-270m-it-qat-Q4_0.gguf
 
 wget https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
@@ -53,7 +40,7 @@ wget https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5
 Basic benchmark (TTFT, generation speed, end-to-end speed per question, plus a
 summary). Results are written to JSON.
 
-```
+```sh
 cd llm
 python3 llm_benchmark.py \
     --model gemma-3-270m-it-[ver].gguf \
@@ -68,7 +55,7 @@ With INA219 power measurement (average / peak / min power, energy per request,
 and mJ per output token, per question). Bus, address, shunt and sample rate are
 configured at the top of `../utils/pwr_meas.py`.
 
-```
+```sh
 python3 llm_benchmark.py \
     --model gemma-3-270m-it-[ver].gguf \
     --questions questions.txt \

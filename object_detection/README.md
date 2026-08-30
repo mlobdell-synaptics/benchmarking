@@ -29,42 +29,32 @@ to also write everything to JSON.
 
 This needs to be done on a Linux x86 or macOS with Python 3.12.
 
-```
+```sh
 cd object_detection
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 pip install --upgrade pip
 ```
 
-```
+```sh
 python -m pip install --upgrade --force-reinstall \
   "torch==2.12.1" \
   "torchvision==0.27.1"
 ```
 
+## Update target system & activate virtual environment
 
-## Update target system
-```
-sudo apt update && sudo apt upgrade -y
-```
-
-## Enter directory and set up virtual environment
-```
-cd object_detection
-python3 -m venv .venv --system-site-packages
-source .venv/bin/activate
-pip install --upgrade pip
-```
+See top level [README.md](../README.md).
 
 ## Install dependencies
 
 Shared:
-```
+```sh
 pip install --no-cache-dir opencv-python numpy
 ```
 
 For `detect_ultralytics.py`:
-```
+```sh
 # cpu-only pytorch
 pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
 pip install --no-cache-dir ultralytics
@@ -72,19 +62,21 @@ pip install pandas-stubs
 ```
 
 For `detect_litert.py`:
-```
+```sh
 pip install --no-cache-dir ai-edge-litert      # or: tflite-runtime
 ```
 On the Astra SL2619 CPU this is the same install — `tflite-runtime` has an
 aarch64 wheel; `ai-edge-litert` also works.
 
 For `detect_torq.py` (Astra SL2619 only):
-```
-pip install --no-cache-dir torq-runtime        # or use the Astra SDK Python env
+
+Install torq runtime.
+```sh
+pip install https://github.com/synaptics-torq/torq-compiler/releases/download/v2.1.0/torq_runtime-2.1.0-cp312-cp312-manylinux_2_28_aarch64.whl
 ```
 
 For `--power` on any script (INA219 over I2C):
-```
+```sh
 pip install --no-cache-dir smbus2
 ```
 On the Pi: enable I2C (`sudo raspi-config` -> Interface Options -> I2C) and wire
@@ -93,11 +85,11 @@ dev kit if an INA219 is wired in series with its 5 V input. Bus, address, shunt
 value and sample rate are configured at the top of `../utils/pwr_meas.py`.
 
 
-
-
 ## Connect USB camera
 
-```
+Connect the camera, then ensure it is recognized. 
+
+```sh
 lsusb
 v4l2-ctl --list-devices
 ```
@@ -132,7 +124,7 @@ or a `<model>.quant.json` sidecar if you use a different export.
 # Run
 
 ## detect_ultralytics.py
-```
+```sh
 python3 detect_ultralytics.py \
     --model yolov8n.pt \
     --source 0 \
@@ -143,7 +135,7 @@ python3 detect_ultralytics.py \
 ```
 
 ## detect_litert.py  (Pi 5 CPU, and Astra SL2619 CPU — identical command)
-```
+```sh
 python3 detect_litert.py \
     --model ../models/yolov8n_int8.tflite \
     --source 0 \
@@ -156,7 +148,7 @@ python3 detect_litert.py \
 On the Astra, `--source` is usually a `/dev/videoN` path.
 
 ## detect_torq.py  (Astra SL2619 Torq NPU)
-```
+```sh
 python3 detect_torq.py \
     --model ../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_8n_2.0.0_npu.vmfb \
     --labels ../models/Synaptics/yolov8-od-nano-320-int8-torq/labels.json \
@@ -171,13 +163,13 @@ run, restoring min on exit (`--no-npu-setup` to skip; needs root for the
 devfreq sysfs writes). Swap `--device local-task` (with the `--cpu` vmfb from
 `fetch_torq_model.py`) for a Torq-runtime CPU baseline. For a live preview with
 `--display` on the board, first:
-```
+```sh
 export XDG_RUNTIME_DIR=/var/run/user/0
 export WAYLAND_DISPLAY=wayland-1
 ```
 
 ## With power measurement (any script)
-```
+```sh
 python3 detect_litert.py \
     --model yolov8n_full_integer_quant.tflite \
     --no-display \
