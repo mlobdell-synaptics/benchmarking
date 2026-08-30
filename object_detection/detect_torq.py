@@ -68,22 +68,25 @@ def parse_args():
     )
     parser.add_argument(
         "--tda",
-        default="dmabuf",
+        default="cpu",
         choices=["dmabuf", "cpu"],
-        help="Allocator backing Torq device buffers (default: dmabuf).",
+        help="Allocator backing Torq device buffers (default: cpu). 'dmabuf' "
+        "needs a working /dev/dma_heap XRAM heap; on runtimes/images where that "
+        "is missing it fails at invoke with 'xram_write: accessing memory out "
+        "of bounds'.",
     )
     parser.add_argument(
         "--device-io",
         dest="device_io",
         action="store_true",
-        default=True,
-        help="Preallocate inputs / keep outputs as device arrays (default: on).",
+        default=False,
+        help="Keep model outputs as device arrays (default: off, host numpy).",
     )
     parser.add_argument(
         "--no-device-io",
         dest="device_io",
         action="store_false",
-        help="Disable device I/O (host numpy in/out).",
+        help="Explicitly disable device I/O (the default).",
     )
     parser.add_argument(
         "--no-npu-setup",

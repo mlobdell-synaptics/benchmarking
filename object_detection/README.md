@@ -50,7 +50,13 @@ See top level [README.md](../README.md).
 
 Shared:
 ```sh
+# Raspberry Pi 5
 pip install --no-cache-dir opencv-python numpy
+
+# Astra SL2619 (Wayland/Weston, no X11) — use the headless build, or the
+# system OpenCV via a --system-site-packages venv. Plain opencv-python pulls
+# libxcb and fails at import with "libxcb.so.1: cannot open shared object file".
+pip install --no-cache-dir opencv-python-headless numpy
 ```
 
 For `detect_ultralytics.py`:
@@ -219,7 +225,7 @@ Press `q` to quit the preview window; use `--no-display` for headless runs
 | --- | --- | --- |
 | `--imgsz` | 320 | Model input size. |
 | `--device` | `torq` | `torq` (NPU) or `local-task` (CPU vmfb). |
-| `--tda` | `dmabuf` | Torq buffer allocator: `dmabuf` or `cpu`. |
-| `--device-io` / `--no-device-io` | on | Preallocate inputs / keep outputs as device arrays. |
+| `--tda` | `cpu` | Torq buffer allocator: `cpu` or `dmabuf`. `dmabuf` needs a working `/dev/dma_heap` XRAM heap; where that is missing it fails at invoke with `xram_write: accessing memory out of bounds`. |
+| `--device-io` / `--no-device-io` | off | Keep model outputs as device arrays. |
 | `--no-npu-setup` | off | Skip the NPU clock-enable + frequency pin. |
 | `--in-scale`, `--in-zero`, `--out-scale`, `--out-zero` | model defaults | Override quantisation parameters. |
