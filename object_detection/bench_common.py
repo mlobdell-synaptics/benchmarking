@@ -49,6 +49,10 @@ except ImportError:  # not available on Windows
 # with the TFLite export) sitting next to the benchmark script.
 DEFAULT_LABELS = Path(__file__).resolve().parent / "labels.json"
 
+# Headless runs print a "still alive" status line this often (seconds).
+# Set to 0 to silence the heartbeat.
+PROGRESS_INTERVAL_S = 1.0
+
 
 # ---------------------------------------------------------------------------
 # Labels
@@ -507,10 +511,11 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
     cap = open_capture(args)
     idle_power_mw = measure_idle(sampler, args)
 
-    if args.no_display:
-        print("Starting video stream (headless)... Press Ctrl+C to exit.")
-    else:
+    display = not args.no_display
+    if display:
         print("Starting video stream... Press 'q' to exit.")
+    else:
+        print("Starting video stream (headless)... Press Ctrl+C to exit.")
 
     inference_times_ms = []      # wall-clock around invoke(), measured frames only
     device_infer_times_ms = []   # runtime-reported, when the detector exposes it
@@ -522,11 +527,21 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
     frame_index = 0
     start_time = None
 
+    # Headless heartbeat so a long run visibly proves it is alive.
+    heartbeat = (not display) and PROGRESS_INTERVAL_S > 0
+    wall_start = time.perf_counter()
+    last_beat = wall_start
+
     try:
         while cap.isOpened():
             success, frame = cap.read()
             if not success:
-                print("Ignoring empty camera frame.")
+                if frame_index == 0:
+                    print(f"No frames from source {args.source!r}. Wrong /dev/videoN "
+                          "node, or the camera needs a format/resolution it does not "
+                          "support. Try `v4l2-ctl --list-devices` / another node.")
+                else:
+                    print("Source ended (no more frames).")
                 break
 
             loop_start = time.perf_counter()
@@ -570,7 +585,27 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
                 else 0.9 * fps_smoothed + 0.1 * instant_fps
             )
 
-            if not args.no_display:
+            if frame_index == 0 and not display:
+                print(f"First frame OK: preprocess {preprocess_ms:.1f} ms, "
+                      f"inference {inference_ms:.1f} ms, postprocess {postprocess_ms:.1f} ms, "
+                      f"{len(detections)} detection(s). Running...", flush=True)
+
+            now = time.perf_counter()
+            if heartbeat and (now - last_beat) >= PROGRESS_INTERVAL_S:
+                last_beat = now
+                phase = "warmup" if not measuring else "measuring"
+                avg = f"{statistics.fmean(inference_times_ms):.1f}" if inference_times_ms else "--"
+                dev = ""
+                if device_infer_ms is not None:
+                    dev = f" | npu {device_infer_ms:.1f} ms"
+                print(
+                    f"[{now - wall_start:6.1f}s] frame {frame_index + 1} ({phase}) | "
+                    f"infer {inference_ms:.1f} ms (avg {avg}){dev} | "
+                    f"{fps_smoothed:.1f} fps | {len(detections)} obj",
+                    flush=True,
+                )
+
+            if display:
                 for (x, y, w, h), cls_id, score in detections:
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     name = names[cls_id] if names and cls_id < len(names) else cls_id
@@ -588,9 +623,14 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
                     (0, 255, 0),
                     2,
                 )
-                cv2.imshow(window_title, frame)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    break
+                try:
+                    cv2.imshow(window_title, frame)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
+                except cv2.error as exc:
+                    print(f"Preview unavailable (headless OpenCV build?): {exc}\n"
+                          "Continuing without display.")
+                    display = False
 
             frame_index += 1
 
@@ -606,7 +646,11 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
         print("\nInterrupted.")
 
     cap.release()
-    cv2.destroyAllWindows()
+    if display:
+        try:
+            cv2.destroyAllWindows()
+        except cv2.error:
+            pass
 
     power_result = None
     if sampler is not None:

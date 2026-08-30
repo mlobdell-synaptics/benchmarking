@@ -131,10 +131,11 @@ def main():
             idle_power_mw = idle_result.total_avg_power_mw
             print(f"Idle power: {idle_power_mw:.1f} mW")
 
-    if args.no_display:
-        print("Starting video stream (headless)... Press Ctrl+C to exit.")
-    else:
+    display = not args.no_display
+    if display:
         print("Starting video stream... Press 'q' to exit.")
+    else:
+        print("Starting video stream (headless)... Press Ctrl+C to exit.")
 
     inference_times_ms = []  # measured frames only (warm-up excluded)
     loop_times_ms = []
@@ -176,7 +177,7 @@ def main():
                 else 0.9 * fps_smoothed + 0.1 * instant_fps
             )
 
-            if not args.no_display:
+            if display:
                 annotated_frame = results[0].plot()
                 cv2.putText(
                     annotated_frame,
@@ -187,11 +188,16 @@ def main():
                     (0, 255, 0),
                     2,
                 )
-                cv2.imshow(
-                    "YOLOv8 COCO Object Detection - Raspberry Pi 5", annotated_frame
-                )
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    break
+                try:
+                    cv2.imshow(
+                        "YOLOv8 COCO Object Detection - Raspberry Pi 5", annotated_frame
+                    )
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
+                except cv2.error as exc:
+                    print(f"Preview unavailable (headless OpenCV build?): {exc}\n"
+                          "Continuing without display.")
+                    display = False
 
             frame_index += 1
 
@@ -207,7 +213,11 @@ def main():
         print("\nInterrupted.")
 
     cap.release()
-    cv2.destroyAllWindows()
+    if display:
+        try:
+            cv2.destroyAllWindows()
+        except cv2.error:
+            pass
 
     power_result = None
     if sampler is not None:
