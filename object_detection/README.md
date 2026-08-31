@@ -90,6 +90,12 @@ the INA219 in series with the Pi's 5 V USB-C input. The same works on the Astra
 dev kit if an INA219 is wired in series with its 5 V input. Bus, address, shunt
 value and sample rate are configured at the top of `../utils/pwr_meas.py`.
 
+Confirm the wiring before a real run:
+```sh
+python3 ../utils/power_check.py            # chip check + plausibility + live V/I/P readout
+python3 ../utils/power_check.py --sanity-only
+```
+
 
 ## Connect USB camera
 

@@ -53,7 +53,8 @@ python3 llm_benchmark.py \
 
 With INA219 power measurement (average / peak / min power, energy per request,
 and mJ per output token, per question). Bus, address, shunt and sample rate are
-configured at the top of `../utils/pwr_meas.py`.
+configured at the top of `../utils/pwr_meas.py`. Verify the circuit first with
+`python3 ../utils/power_check.py`.
 
 ```sh
 python3 llm_benchmark.py \
