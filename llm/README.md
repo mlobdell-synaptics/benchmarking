@@ -35,6 +35,53 @@ wget https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/resolve/main/gemma
 wget https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
 ```
 
+## BF16 (full precision)
+
+`llm_benchmark.py` takes any GGUF path, so a BF16 comparison run needs no code
+changes — just a BF16 weight file.
+
+Gemma 3 270M-it: bartowski publishes a real BF16 file (the `ggml-org` repo
+above only has Q8_0).
+```sh
+wget https://huggingface.co/bartowski/google_gemma-3-270m-it-GGUF/resolve/main/google_gemma-3-270m-it-bf16.gguf
+```
+
+Qwen2.5-0.5B-Instruct: no repo (official or bartowski) publishes a BF16 file,
+only `f16` (fp16, not bf16). Convert it yourself from the original HF
+checkpoint with llama.cpp's converter (separate from `llama-cpp-python`):
+```sh
+git clone --depth 1 https://github.com/ggml-org/llama.cpp.git
+pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
+pip install -U "huggingface_hub[cli]"
+
+huggingface-cli download Qwen/Qwen2.5-0.5B-Instruct --local-dir qwen2.5-0.5b-instruct-hf
+
+python3 llama.cpp/convert_hf_to_gguf.py qwen2.5-0.5b-instruct-hf \
+    --outtype bf16 \
+    --outfile qwen2.5-0.5b-instruct-bf16.gguf
+```
+
+Note: BF16 files are ~2x the Q8_0 size, and on CPUs without native BF16 SIMD
+kernels `ggml` typically upconverts to F32 for compute — so BF16 speed can
+land close to (or behind) F16/Q8_0 rather than being "full precision but
+fast." That's expected, not a bug in the run.
+
+Run them the same way as any other GGUF (see Run, below):
+```sh
+cd llm
+python3 llm_benchmark.py \
+    --model ../models/google_gemma-3-270m-it-bf16.gguf \
+    --threads 2 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output ../results/llama_cpp/gemma3_270m_it_bf16.json
+
+python3 llm_benchmark.py \
+    --model ../models/qwen2.5-0.5b-instruct-bf16.gguf \
+    --threads 2 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output ../results/llama_cpp/qwen2.5_0.5b_instruct_bf16.json
+```
+
 # Run
 
 Basic benchmark (TTFT, generation speed, end-to-end speed per question, plus a
