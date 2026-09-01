@@ -1,1 +1,1 @@
-llama-cpp-python
+../wheels/llama_cpp_python-0.3.16-cp312-cp312-linux_aarch64.whl

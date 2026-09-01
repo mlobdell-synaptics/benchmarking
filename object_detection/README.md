@@ -151,7 +151,7 @@ python3 detect_ultralytics.py \
 python3 detect_litert.py \
     --model ../models/yolov8n_int8.tflite \
     --source 0 \
-    --threads 4 \
+    --threads 2 \
     --conf 0.25 --iou 0.45 \
     --duration 60 \
     --no-display \

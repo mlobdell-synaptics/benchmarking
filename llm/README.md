@@ -43,8 +43,8 @@ summary). Results are written to JSON.
 ```sh
 cd llm
 python3 llm_benchmark.py \
-    --model gemma-3-270m-it-[ver].gguf \
-    --threads 4 \
+    --model ../models/gemma-3-270m-it-[ver].gguf \
+    --threads 2 \
     --context 1024 \
     --max-tokens 128 \
     --questions questions.txt \
