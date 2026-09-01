@@ -330,7 +330,7 @@ def main() -> int:
                 temperature=args.temperature,
                 top_p=args.top_p,
                 top_k=args.top_k,
-                runtime_flags=[f"--torq_device_allocator={args.tda}"],
+                #runtime_flags=[f"--torq_device_allocator={args.tda}"],
                 device_io=args.device_io,
             )
         except Exception as exc:
