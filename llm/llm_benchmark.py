@@ -29,6 +29,39 @@ from typing import TYPE_CHECKING, Any, Iterable
 if TYPE_CHECKING:  # import lazily in main() so llm_benchmark_torq.py can reuse
     from llama_cpp import Llama  # this module's helpers without llama-cpp installed
 
+try:
+    import psutil
+
+    _PROC = psutil.Process()
+except Exception:  # psutil not installed on the target
+    psutil = None
+    _PROC = None
+
+try:
+    import resource
+except ImportError:  # not available on Windows
+    resource = None
+
+
+def rss_mb() -> float | None:
+    """Current resident set size of this process in MiB, or None if unavailable."""
+    if _PROC is not None:
+        return _PROC.memory_info().rss / (1024 * 1024)
+    return None
+
+
+def peak_rss_mb() -> float | None:
+    """Peak RSS of this process (since start) in MiB, or None if unavailable.
+
+    Captures the model-load spike even for questions sampled after it, since
+    `ru_maxrss` is a running high-water mark for the whole process lifetime.
+    """
+    if resource is not None:
+        maxrss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # Linux reports KiB, macOS/BSD report bytes.
+        return maxrss / 1024 if sys.platform == "linux" else maxrss / (1024 * 1024)
+    return None
+
 
 DEFAULT_QUESTIONS = [
     "What are the three primary colors of light?",
@@ -64,6 +97,10 @@ class BenchmarkResult:
     dynamic_energy_j: float | None = None
     dynamic_energy_per_token_mj: float | None = None
     power_sample_rate_hz: float | None = None
+    # Process RSS sampled during this question's generation (best-effort; None
+    # if psutil/resource aren't available on the target).
+    avg_rss_mb: float | None = None
+    peak_rss_mb: float | None = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -240,6 +277,7 @@ def benchmark_question(
     first_text_time: float | None = None
     pieces: list[str] = []
     power = None
+    rss_samples_mb: list[float] = []
 
     if sampler is not None:
         sampler.start(f"q{question_number}")
@@ -266,6 +304,10 @@ def benchmark_question(
             if print_stream:
                 print(text, end="", flush=True)
 
+            sample = rss_mb()
+            if sample is not None:
+                rss_samples_mb.append(sample)
+
         end = time.perf_counter()
     finally:
         # Always end the session so a failed question can't leak into the next.
@@ -291,6 +333,11 @@ def benchmark_question(
     end_to_end_tokens_per_second = (
         output_tokens / total_seconds if total_seconds > 0 else 0.0
     )
+
+    memory_fields: dict[str, float] = {}
+    if rss_samples_mb:
+        memory_fields["avg_rss_mb"] = statistics.fmean(rss_samples_mb)
+        memory_fields["peak_rss_mb"] = max(rss_samples_mb)
 
     power_fields: dict[str, float] = {}
     if power is not None:
@@ -321,6 +368,7 @@ def benchmark_question(
         total_seconds=total_seconds,
         tokens_per_second=tokens_per_second,
         end_to_end_tokens_per_second=end_to_end_tokens_per_second,
+        **memory_fields,
         **power_fields,
     )
 
@@ -334,6 +382,11 @@ def print_result(result: BenchmarkResult) -> None:
         f"Total request time:  {result.total_seconds:.3f} s\n"
         f"End-to-end speed:    {result.end_to_end_tokens_per_second:.2f} tokens/s"
     )
+    if result.avg_rss_mb is not None:
+        print(
+            f"Avg RSS:             {result.avg_rss_mb:.1f} MiB\n"
+            f"Peak RSS:            {result.peak_rss_mb:.1f} MiB"
+        )
     if result.avg_power_mw is not None:
         print(
             f"Avg power:           {result.avg_power_mw:.1f} mW\n"
@@ -364,6 +417,13 @@ def build_summary(results: list[BenchmarkResult]) -> dict[str, float]:
         ),
         "mean_total_seconds": statistics.fmean(r.total_seconds for r in results),
     }
+
+    measured_mem = [r for r in results if r.avg_rss_mb is not None]
+    if measured_mem:
+        summary["mean_avg_rss_mb"] = statistics.fmean(
+            r.avg_rss_mb for r in measured_mem
+        )
+        summary["max_peak_rss_mb"] = max(r.peak_rss_mb for r in measured_mem)
 
     powered = [r for r in results if r.avg_power_mw is not None]
     if powered:
@@ -519,6 +579,10 @@ def main() -> int:
             "cpu_only": True,
             "power_measured": sampler is not None,
             "idle_power_mw": idle_power_mw,
+            # Whole-process high-water mark (since interpreter start), so it
+            # also captures the model-load spike that per-question sampling
+            # (after load) can't see. None if psutil/resource are unavailable.
+            "peak_process_rss_mb": peak_rss_mb(),
         },
         "summary": summary,
         "results": [asdict(result) for result in results],
@@ -537,6 +601,14 @@ def main() -> int:
         f"Median generation speed: "
         f"{summary['median_tokens_per_second']:.2f} tokens/s"
     )
+    if "mean_avg_rss_mb" in summary:
+        print(f"Mean avg RSS:            {summary['mean_avg_rss_mb']:.1f} MiB")
+        print(f"Max peak RSS:            {summary['max_peak_rss_mb']:.1f} MiB")
+    if report["configuration"]["peak_process_rss_mb"] is not None:
+        print(
+            f"Peak process RSS:        "
+            f"{report['configuration']['peak_process_rss_mb']:.1f} MiB (incl. model load)"
+        )
     if "mean_avg_power_mw" in summary:
         print(f"Mean power:              {summary['mean_avg_power_mw']:.1f} mW")
         print(f"Max peak power:          {summary['max_peak_power_mw']:.1f} mW")

@@ -54,7 +54,7 @@ git clone --depth 1 https://github.com/ggml-org/llama.cpp.git
 pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
 pip install -U "huggingface_hub[cli]"
 
-huggingface-cli download Qwen/Qwen2.5-0.5B-Instruct --local-dir qwen2.5-0.5b-instruct-hf
+hf download Qwen/Qwen2.5-0.5B-Instruct --local-dir qwen2.5-0.5b-instruct-hf
 
 python3 llama.cpp/convert_hf_to_gguf.py qwen2.5-0.5b-instruct-hf \
     --outtype bf16 \
@@ -73,19 +73,56 @@ python3 llm_benchmark.py \
     --model ../models/google_gemma-3-270m-it-bf16.gguf \
     --threads 2 --context 1024 --max-tokens 128 \
     --questions questions.txt \
-    --output ../results/llama_cpp/gemma3_270m_it_bf16.json
+    --output llama_cpp/gemma3_270m_it_bf16.json
 
 python3 llm_benchmark.py \
     --model ../models/qwen2.5-0.5b-instruct-bf16.gguf \
     --threads 2 --context 1024 --max-tokens 128 \
     --questions questions.txt \
-    --output ../results/llama_cpp/qwen2.5_0.5b_instruct_bf16.json
+    --output llama_cpp/qwen2.5_0.5b_instruct_bf16.json
+```
+
+## FP32 (full precision)
+
+No repo publishes an FP32 GGUF (it's ~2x the BF16 size for no accuracy
+benefit), so convert it yourself from the original HF checkpoint the same way
+as the Qwen BF16 case above, but with `--outtype f32`:
+```sh
+git clone --depth 1 https://github.com/ggml-org/llama.cpp.git
+pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
+pip install -U "huggingface_hub[cli]"
+
+hf download google/gemma-3-270m-it --local-dir gemma-3-270m-it-hf
+
+python3 llama.cpp/convert_hf_to_gguf.py gemma-3-270m-it-hf \
+    --outtype f32 \
+    --outfile gemma-3-270m-it-f32.gguf
+```
+
+Note: FP32 is ~4x the Q8_0 file size and ~2x BF16/F16, so expect the slowest
+load and highest RSS in the comparison table — that's the point of including
+it. Unlike BF16 (which `ggml` often upconverts to F32 anyway on CPUs without
+native BF16 kernels), this is the true "no quantization" baseline.
+
+Run it the same way as any other GGUF (see Run, below):
+```sh
+cd llm
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-f32.gguf \
+    --threads 2 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output llama_cpp/gemma3_270m_it_f32.json
 ```
 
 # Run
 
 Basic benchmark (TTFT, generation speed, end-to-end speed per question, plus a
-summary). Results are written to JSON.
+summary). Results are written to JSON. Process RSS (average and peak, sampled
+during each question's generation) is also tracked automatically via `psutil`/
+`resource` — no flag needed; the fields just come back `null` if `psutil`
+isn't installed. `configuration.peak_process_rss_mb` additionally captures the
+whole run's high-water mark, including the model-load spike that per-question
+sampling (which only runs after load) can't see.
 
 ```sh
 cd llm
