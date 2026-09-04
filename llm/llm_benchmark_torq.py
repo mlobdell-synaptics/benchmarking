@@ -127,8 +127,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--device-io",
         action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Keep KV-cache tensors as device arrays. Default: disabled.",
+        default=True,
+        help="Keep KV-cache tensors as device arrays. Default: enabled.",
     )
     parser.add_argument(
         "--no-npu-setup",
