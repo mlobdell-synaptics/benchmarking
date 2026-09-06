@@ -136,6 +136,23 @@ def parse_args() -> argparse.Namespace:
         help="Skip enabling the NPU clock and pinning its frequency.",
     )
     parser.add_argument(
+        "--quiesce-display",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Stop the Weston/Wayland compositor for the run, then restart "
+        "it afterward. Reduces background CPU/power overhead. Default: "
+        "enabled (--no-quiesce-display to skip).",
+    )
+    parser.add_argument(
+        "--quiesce-wifi",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Soft-block the WiFi radio for the run, then unblock it "
+        "afterward. Reduces background CPU/power overhead. Leaves usb0 "
+        "(the adb/NCM link) untouched. Default: enabled (--no-quiesce-wifi "
+        "to skip).",
+    )
+    parser.add_argument(
         "--warmup",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -307,6 +324,7 @@ def main() -> int:
 
     sys.path.insert(0, str(_UTILS_DIR))
     from npu import configure_npu_userspace_frequency, enable_npu_clock
+    from system_services import disable_display, disable_wifi, enable_display, enable_wifi
 
     npu_active = not args.no_npu_setup
     if npu_active:
@@ -315,6 +333,13 @@ def main() -> int:
             configure_npu_userspace_frequency("max"),
         ):
             print(f"[NPU] {message}")
+
+    if args.quiesce_display:
+        for _ok, message in disable_display():
+            print(f"[services] {message}")
+    if args.quiesce_wifi:
+        for _ok, message in disable_wifi():
+            print(f"[services] {message}")
 
     try:
         try:
@@ -422,6 +447,12 @@ def main() -> int:
         if npu_active:
             _ok, message = configure_npu_userspace_frequency("min")
             print(f"[NPU] {message}")
+        if args.quiesce_wifi:
+            for _ok, message in enable_wifi():
+                print(f"[services] {message}")
+        if args.quiesce_display:
+            for _ok, message in enable_display():
+                print(f"[services] {message}")
 
     if not results:
         print("No benchmark requests completed successfully.", file=sys.stderr)
@@ -443,6 +474,8 @@ def main() -> int:
             "top_k": args.top_k,
             "instruct_model": args.instruct_model,
             "warmup": args.warmup,
+            "quiesce_display": args.quiesce_display,
+            "quiesce_wifi": args.quiesce_wifi,
             "power_measured": sampler is not None,
             "idle_power_mw": idle_power_mw,
             # Whole-process high-water mark (since interpreter start), so it

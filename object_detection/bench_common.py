@@ -21,6 +21,7 @@ A *detector* is any object with this duck-typed interface:
 `postprocess` (here always the letterbox transform `(r, dw, dh)`).
 """
 
+import argparse
 import json
 import statistics
 import sys
@@ -173,6 +174,25 @@ def add_common_args(parser):
         default=0.0,
         help="Measure idle power for this long before the run, and also report "
         "dynamic (idle-subtracted) energy per inference.",
+    )
+    parser.add_argument(
+        "--quiesce-display",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Stop the Weston/Wayland compositor for the run, then restart "
+        "it afterward. Reduces background CPU/power overhead. If --no-display "
+        "was not also passed, the preview window degrades to headless (a "
+        "harmless cv2.error is caught). Default: enabled "
+        "(--no-quiesce-display to skip).",
+    )
+    parser.add_argument(
+        "--quiesce-wifi",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Soft-block the WiFi radio for the run, then unblock it "
+        "afterward. Reduces background CPU/power overhead. Leaves usb0 "
+        "(the adb/NCM link) untouched. Default: enabled (--no-quiesce-wifi "
+        "to skip).",
     )
     return parser
 
@@ -335,6 +355,8 @@ def build_metrics(
         "frames_measured": frames,
         "warmup_frames": args.warmup,
         "elapsed_seconds": round(elapsed_s, 3),
+        "quiesce_display": args.quiesce_display,
+        "quiesce_wifi": args.quiesce_wifi,
     }
     if extra:
         metrics.update(extra)
@@ -507,6 +529,31 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
     Drive `detector` over the frames from `args.source`, collect the metrics and
     print (and optionally write) them. Returns the metrics dict.
     """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "utils"))
+    from system_services import disable_display, disable_wifi, enable_display, enable_wifi
+
+    if args.quiesce_display:
+        for _ok, message in disable_display():
+            print(f"[services] {message}")
+    if args.quiesce_wifi:
+        for _ok, message in disable_wifi():
+            print(f"[services] {message}")
+
+    try:
+        return _run_benchmark_loop(
+            args, detector, names, runtime=runtime, window_title=window_title,
+            extra_metrics=extra_metrics,
+        )
+    finally:
+        if args.quiesce_wifi:
+            for _ok, message in enable_wifi():
+                print(f"[services] {message}")
+        if args.quiesce_display:
+            for _ok, message in enable_display():
+                print(f"[services] {message}")
+
+
+def _run_benchmark_loop(args, detector, names, *, runtime, window_title, extra_metrics=None):
     monitor, sampler = setup_power(args)
     cap = open_capture(args)
     idle_power_mw = measure_idle(sampler, args)

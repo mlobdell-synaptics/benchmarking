@@ -187,6 +187,23 @@ def parse_args() -> argparse.Namespace:
         help="Measure idle power for this long before the run, and also report "
         "dynamic (idle-subtracted) energy per question and per token.",
     )
+    parser.add_argument(
+        "--quiesce-display",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Stop the Weston/Wayland compositor for the run, then restart "
+        "it afterward. Reduces background CPU/power overhead. Default: "
+        "enabled (--no-quiesce-display to skip).",
+    )
+    parser.add_argument(
+        "--quiesce-wifi",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Soft-block the WiFi radio for the run, then unblock it "
+        "afterward. Reduces background CPU/power overhead. Leaves usb0 "
+        "(the adb/NCM link) untouched. Default: enabled (--no-quiesce-wifi "
+        "to skip).",
+    )
     return parser.parse_args()
 
 
@@ -476,91 +493,108 @@ def main() -> int:
     output_path = args.output or Path(f"{args.model.stem}_benchmark_results.json")
     output_path = unique_output_path(output_path)
 
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "utils"))
+    from system_services import disable_display, disable_wifi, enable_display, enable_wifi
+
+    if args.quiesce_display:
+        for _ok, message in disable_display():
+            print(f"[services] {message}")
+    if args.quiesce_wifi:
+        for _ok, message in disable_wifi():
+            print(f"[services] {message}")
+
     print(f"Loading model: {args.model}")
     print(f"Threads: {args.threads}; batch threads: {batch_threads}")
     print(f"Context: {args.context}; max output tokens: {args.max_tokens}")
 
     try:
-        llm = Llama(
-            model_path=str(args.model),
-            n_ctx=args.context,
-            n_threads=args.threads,
-            n_threads_batch=batch_threads,
-            n_batch=min(512, args.context),
-            n_gpu_layers=0,       # Explicit CPU-only execution
-            use_mmap=True,        # Helpful on memory-constrained systems
-            use_mlock=False,
-            verbose=args.verbose_model,
-        )
-    except Exception as exc:
-        print(f"Failed to load model: {exc}", file=sys.stderr)
-        return 1
-
-    monitor = sampler = None
-    idle_power_mw = None
-    if args.power:
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "utils"))
-        from pwr_meas import make_power_sampler
-
-        monitor, sampler = make_power_sampler(
-            csv_file=str(args.power_csv) if args.power_csv else None
-        )
-        if sampler is not None and args.idle_seconds > 0:
-            print(f"\nMeasuring idle power for {args.idle_seconds:.1f} s...")
-            sampler.start("idle")
-            time.sleep(args.idle_seconds)
-            idle_result = sampler.stop()
-            if idle_result is not None:
-                idle_power_mw = idle_result.total_avg_power_mw
-                print(f"Idle power: {idle_power_mw:.1f} mW")
-
-    if args.warmup:
-        print("\nRunning warm-up request...")
         try:
-            benchmark_question(
-                llm=llm,
-                question="Reply with only the word ready.",
-                question_number=0,
-                max_tokens=8,
-                temperature=0.0,
-                print_stream=False,
+            llm = Llama(
+                model_path=str(args.model),
+                n_ctx=args.context,
+                n_threads=args.threads,
+                n_threads_batch=batch_threads,
+                n_batch=min(512, args.context),
+                n_gpu_layers=0,       # Explicit CPU-only execution
+                use_mmap=True,        # Helpful on memory-constrained systems
+                use_mlock=False,
+                verbose=args.verbose_model,
             )
         except Exception as exc:
-            print(f"Warm-up failed: {exc}", file=sys.stderr)
+            print(f"Failed to load model: {exc}", file=sys.stderr)
             return 1
 
-    results: list[BenchmarkResult] = []
+        monitor = sampler = None
+        idle_power_mw = None
+        if args.power:
+            from pwr_meas import make_power_sampler
 
-    for index, question in enumerate(questions, start=1):
-        print(f"\n{'=' * 72}")
-        print(f"Question {index}/{len(questions)}: {question}")
-        print("-" * 72)
-        print("Response:")
-
-        try:
-            result = benchmark_question(
-                llm=llm,
-                question=question,
-                question_number=index,
-                max_tokens=args.max_tokens,
-                temperature=args.temperature,
-                sampler=sampler,
-                idle_power_mw=idle_power_mw,
+            monitor, sampler = make_power_sampler(
+                csv_file=str(args.power_csv) if args.power_csv else None
             )
-        except KeyboardInterrupt:
-            print("\nBenchmark interrupted.", file=sys.stderr)
-            return 130
-        except Exception as exc:
-            print(f"\nQuestion failed: {exc}", file=sys.stderr)
-            continue
+            if sampler is not None and args.idle_seconds > 0:
+                print(f"\nMeasuring idle power for {args.idle_seconds:.1f} s...")
+                sampler.start("idle")
+                time.sleep(args.idle_seconds)
+                idle_result = sampler.stop()
+                if idle_result is not None:
+                    idle_power_mw = idle_result.total_avg_power_mw
+                    print(f"Idle power: {idle_power_mw:.1f} mW")
 
-        results.append(result)
-        print_result(result)
+        if args.warmup:
+            print("\nRunning warm-up request...")
+            try:
+                benchmark_question(
+                    llm=llm,
+                    question="Reply with only the word ready.",
+                    question_number=0,
+                    max_tokens=8,
+                    temperature=0.0,
+                    print_stream=False,
+                )
+            except Exception as exc:
+                print(f"Warm-up failed: {exc}", file=sys.stderr)
+                return 1
 
-    if sampler is not None:
-        sampler.close()
-    if monitor is not None:
-        monitor.close()
+        results: list[BenchmarkResult] = []
+
+        for index, question in enumerate(questions, start=1):
+            print(f"\n{'=' * 72}")
+            print(f"Question {index}/{len(questions)}: {question}")
+            print("-" * 72)
+            print("Response:")
+
+            try:
+                result = benchmark_question(
+                    llm=llm,
+                    question=question,
+                    question_number=index,
+                    max_tokens=args.max_tokens,
+                    temperature=args.temperature,
+                    sampler=sampler,
+                    idle_power_mw=idle_power_mw,
+                )
+            except KeyboardInterrupt:
+                print("\nBenchmark interrupted.", file=sys.stderr)
+                return 130
+            except Exception as exc:
+                print(f"\nQuestion failed: {exc}", file=sys.stderr)
+                continue
+
+            results.append(result)
+            print_result(result)
+
+        if sampler is not None:
+            sampler.close()
+        if monitor is not None:
+            monitor.close()
+    finally:
+        if args.quiesce_wifi:
+            for _ok, message in enable_wifi():
+                print(f"[services] {message}")
+        if args.quiesce_display:
+            for _ok, message in enable_display():
+                print(f"[services] {message}")
 
     if not results:
         print("No benchmark requests completed successfully.", file=sys.stderr)
@@ -576,6 +610,8 @@ def main() -> int:
             "max_tokens": args.max_tokens,
             "temperature": args.temperature,
             "warmup": args.warmup,
+            "quiesce_display": args.quiesce_display,
+            "quiesce_wifi": args.quiesce_wifi,
             "cpu_only": True,
             "power_measured": sampler is not None,
             "idle_power_mw": idle_power_mw,

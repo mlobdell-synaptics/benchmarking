@@ -166,6 +166,8 @@ python3 llm_benchmark.py \
 | `--power` | off | Measure board power per question with an INA219 over I2C. |
 | `--power-csv PATH` | off | Write every power sample to a CSV file. |
 | `--idle-seconds N` | 0 | Measure idle power for N s first; also report idle-subtracted energy. |
+| `--quiesce-display` / `--no-quiesce-display` | on | Stop Weston for the run, restart on exit (no-op if not present, e.g. headless Pi). |
+| `--quiesce-wifi` / `--no-quiesce-wifi` | on | Soft-block WiFi (`rfkill`) for the run, unblock on exit. Leaves `usb0`/adb untouched. |
 
 # Torq NPU (Astra SL2619)
 
@@ -208,6 +210,18 @@ The script enables the NPU clock and pins the NPU to max frequency for the run
 writes). `--power` / `--idle-seconds` / `--power-csv` behave exactly as in
 `llm_benchmark.py`.
 
+The Weston compositor and WiFi radio are stopped/soft-blocked for the run by
+default (restoring both on exit), to remove their background CPU/power
+overhead from the measurement — use `--no-quiesce-display` / `--no-quiesce-wifi`
+to keep either running. WiFi is disabled via `rfkill block wifi`, not by
+stopping NetworkManager/networkd — that also manages `usb0` (the
+adb/NCM-gadget link), so it's left alone; run over `adb shell`, not SSH, if
+WiFi quiescing is enabled. If a run is interrupted before its own cleanup
+runs, restore both manually with `utils/system_services.py`:
+```sh
+python3 ../utils/system_services.py enable all      # or: display / wifi
+```
+
 ## Torq options (beyond the shared ones)
 
 | Flag | Default | Description |
@@ -221,5 +235,7 @@ writes). `--power` / `--idle-seconds` / `--power-csv` behave exactly as in
 | `--tda {cpu,dmabuf}` | `cpu` | Torq buffer allocator. `dmabuf` needs a working `/dev/dma_heap` XRAM heap or inference fails with `xram_write: accessing memory out of bounds`. |
 | `--device-io` / `--no-device-io` | off | Keep KV-cache tensors as device arrays. |
 | `--no-npu-setup` | off | Skip the NPU clock-enable + frequency pin. |
+| `--quiesce-display` / `--no-quiesce-display` | on | Stop Weston for the run, restart on exit. |
+| `--quiesce-wifi` / `--no-quiesce-wifi` | on | Soft-block WiFi (`rfkill`) for the run, unblock on exit. Leaves `usb0`/adb untouched. |
 | `--temperature` / `--top-p` / `--top-k` | 0.0 / 1.0 / 64 | Sampling. |
 

@@ -211,6 +211,8 @@ Press `q` to quit the preview window; use `--no-display` for headless runs
 | `--power` | off | Measure board power with an INA219 over I2C. |
 | `--power-csv PATH` | off | Write every power sample to a CSV file. |
 | `--idle-seconds N` | 0 | Measure idle power for N s first; also report idle-subtracted energy per inference. |
+| `--quiesce-display` / `--no-quiesce-display` | on | Stop Weston for the run, restart on exit (no-op if not present, e.g. headless Pi). If `--no-display` isn't also passed, the preview window degrades to headless. |
+| `--quiesce-wifi` / `--no-quiesce-wifi` | on | Soft-block WiFi (`rfkill`) for the run, unblock on exit. Leaves `usb0`/adb untouched. |
 | `--conf` | 0.25 | Confidence threshold. |
 | `--iou` | 0.45 | IoU threshold for non-max suppression. |
 | `--labels PATH` | `labels.json` next to the script | Class names (`labels.json` or one name per line). |
