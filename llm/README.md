@@ -166,8 +166,20 @@ python3 llm_benchmark.py \
 | `--power` | off | Measure board power per question with an INA219 over I2C. |
 | `--power-csv PATH` | off | Write every power sample to a CSV file. |
 | `--idle-seconds N` | 0 | Measure idle power for N s first; also report idle-subtracted energy. |
-| `--quiesce-display` / `--no-quiesce-display` | on | Stop Weston for the run, restart on exit (no-op if not present, e.g. headless Pi). |
-| `--quiesce-wifi` / `--no-quiesce-wifi` | on | Soft-block WiFi (`rfkill`) for the run, unblock on exit. Leaves `usb0`/adb untouched. |
+| `--quiesce-display` / `--no-quiesce-display` | on | Stop the display (Weston on Astra, `lightdm` on Raspberry Pi OS Desktop) for the run, restart on exit (no-op if neither is present, e.g. headless Pi). |
+| `--quiesce-wifi` / `--no-quiesce-wifi` | on | Soft-block WiFi (`rfkill`) for the run, unblock on exit. Leaves Ethernet and `usb0`/adb untouched. |
+| `--quiesce-network` | off | Stop the full network stack (NetworkManager/dhcpcd/networkd/wpa_supplicant/dnsmasq — Ethernet *and* WiFi) for the run, restart on exit. Only use over a connection that doesn't depend on IP networking (e.g. a serial console) — it will drop an SSH session before it can restore anything. |
+
+On the Astra boards, adb/serial shells already run as root, so `--quiesce-*`
+just works. On a non-root login (e.g. Raspberry Pi OS Desktop's default
+user), stopping/starting services needs privilege: `systemctl` calls go
+through `sudo -n`, which succeeds silently if the account has (passwordless)
+sudo rights — the Raspberry Pi Imager default user does — and otherwise fails
+fast with a clear message rather than hanging on an unanswerable polkit
+prompt. See the top of `utils/system_services.py` for the sudoers.d rule to
+add if your account isn't already passwordless-sudo. `rfkill` (used by
+`--quiesce-wifi`) is tried unprivileged first and typically just works
+(seat-permitted via udev on Raspberry Pi OS Desktop).
 
 # Torq NPU (Astra SL2619)
 
@@ -238,4 +250,32 @@ python3 ../utils/system_services.py enable all      # or: display / wifi
 | `--quiesce-display` / `--no-quiesce-display` | on | Stop Weston for the run, restart on exit. |
 | `--quiesce-wifi` / `--no-quiesce-wifi` | on | Soft-block WiFi (`rfkill`) for the run, unblock on exit. Leaves `usb0`/adb untouched. |
 | `--temperature` / `--top-p` / `--top-k` | 0.0 / 1.0 / 64 | Sampling. |
+
+## Raspberry Pi 5 config
+
+To enable the serial connections on the 40-pin header (pins 14/15). 
+
+Open the boot config file: 
+```
+sudo vim /boot/firmware/config.txt
+```
+
+Add these lines to the bottom of the file:
+```
+enable_uart=1
+dtoverlay=miniuart-bt
+```
+
+Run the config utility and enable messages to the serial port:
+```
+sudo raspi-config
+```
+
+Go to Interface Options -> Serial Port.
+
+Select Yes to get the login shell over serial.
+
+Select Yes to enable serial port hardware.
+
+Click Finish to exit and reboot.
 

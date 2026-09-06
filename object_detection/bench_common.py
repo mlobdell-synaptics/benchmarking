@@ -179,20 +179,31 @@ def add_common_args(parser):
         "--quiesce-display",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Stop the Weston/Wayland compositor for the run, then restart "
-        "it afterward. Reduces background CPU/power overhead. If --no-display "
-        "was not also passed, the preview window degrades to headless (a "
-        "harmless cv2.error is caught). Default: enabled "
-        "(--no-quiesce-display to skip).",
+        help="Stop the display (Weston on Astra, lightdm on Raspberry Pi OS "
+        "Desktop) for the run, then restart it afterward. Reduces "
+        "background CPU/power overhead. If --no-display was not also "
+        "passed, the preview window degrades to headless (a harmless "
+        "cv2.error is caught). Default: enabled (--no-quiesce-display to "
+        "skip).",
     )
     parser.add_argument(
         "--quiesce-wifi",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Soft-block the WiFi radio for the run, then unblock it "
-        "afterward. Reduces background CPU/power overhead. Leaves usb0 "
-        "(the adb/NCM link) untouched. Default: enabled (--no-quiesce-wifi "
-        "to skip).",
+        "afterward. Reduces background CPU/power overhead. Leaves Ethernet "
+        "and usb0 (the adb/NCM link) untouched. Default: enabled "
+        "(--no-quiesce-wifi to skip).",
+    )
+    parser.add_argument(
+        "--quiesce-network",
+        action="store_true",
+        help="Stop the full network stack (NetworkManager/dhcpcd/networkd/"
+        "wpa_supplicant/dnsmasq - both Ethernet and WiFi) for the run, then "
+        "restart it afterward. Only use this over a connection that does "
+        "not depend on IP networking (e.g. a serial console) - it will drop "
+        "an SSH/network-adb session before it can restore anything. "
+        "Default: off.",
     )
     return parser
 
@@ -357,6 +368,7 @@ def build_metrics(
         "elapsed_seconds": round(elapsed_s, 3),
         "quiesce_display": args.quiesce_display,
         "quiesce_wifi": args.quiesce_wifi,
+        "quiesce_network": args.quiesce_network,
     }
     if extra:
         metrics.update(extra)
@@ -530,13 +542,23 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
     print (and optionally write) them. Returns the metrics dict.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "utils"))
-    from system_services import disable_display, disable_wifi, enable_display, enable_wifi
+    from system_services import (
+        disable_display,
+        disable_network,
+        disable_wifi,
+        enable_display,
+        enable_network,
+        enable_wifi,
+    )
 
     if args.quiesce_display:
         for _ok, message in disable_display():
             print(f"[services] {message}")
     if args.quiesce_wifi:
         for _ok, message in disable_wifi():
+            print(f"[services] {message}")
+    if args.quiesce_network:
+        for _ok, message in disable_network():
             print(f"[services] {message}")
 
     try:
@@ -545,6 +567,9 @@ def run_benchmark(args, detector, names, *, runtime, window_title, extra_metrics
             extra_metrics=extra_metrics,
         )
     finally:
+        if args.quiesce_network:
+            for _ok, message in enable_network():
+                print(f"[services] {message}")
         if args.quiesce_wifi:
             for _ok, message in enable_wifi():
                 print(f"[services] {message}")
