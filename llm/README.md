@@ -5,18 +5,27 @@
 See top level [README.md](../README.md).
 
 ## Install dependencies
+
+Pick the requirements file for your target:
+
+| Target | File |
+| --- | --- |
+| Raspberry Pi 5 | `requirements-pi5.txt` |
+| Astra SL2610 | `requirements-astra-sl2610.txt` |
+| macOS | `requirements-macos.txt` |
+
 ```sh
 pip install --upgrade setuptools wheel
+CMAKE_ARGS="-DGGML_NATIVE=ON" CMAKE_BUILD_PARALLEL_LEVEL=4 \
+    pip install -r requirements-<target>.txt
 ```
 
-## Set CMAKE args for building the llama-cpp wheel
-CMAKE_ARGS="-DGGML_NATIVE=ON" \
-CMAKE_BUILD_PARALLEL_LEVEL=4 \
-
-## Install llama-cpp
-```sh
-python3 -m pip install --no-cache-dir llama-cpp-python
-```
+Raspberry Pi 5 and Astra SL2610 install a prebuilt CPU wheel from `../wheels/`
+(no compile needed, `CMAKE_ARGS` is a no-op there). macOS has no prebuilt
+wheel, so `llama-cpp-python` builds from source — `CMAKE_ARGS` is what
+actually takes effect there; see the comments in `requirements-macos.txt` for
+the Metal-support flag (unused by `llm_benchmark.py` as written, which
+hardcodes CPU-only execution).
 
 # Download models to test
 
@@ -25,7 +34,7 @@ python3 -m pip install --no-cache-dir llama-cpp-python
 cd models
 wget https://huggingface.co/jaewoo49/gemm-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
 
-wget https://huggingface.com/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-270m-it-Q8_0.gguf
+wget https://huggingface.co/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q8_0.gguf
 ```
 
 ## Quantization Arware Training (QAT)
@@ -73,7 +82,40 @@ python3 llm_benchmark.py \
     --model ../models/google_gemma-3-270m-it-bf16.gguf \
     --threads 2 --context 1024 --max-tokens 128 \
     --questions questions.txt \
-    --output llama_cpp/gemma3_270m_it_bf16.json
+    --output raspi_cpux2_gemma3_270m_it_bf16.json
+
+python3 llm_benchmark.py \
+    --model ../models/google_gemma-3-270m-it-bf16.gguf \
+    --threads 4 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux4_gemma3_270m_it_bf16.json
+
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --threads 2 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux2_gemma3_270m_it_Q8.json
+
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --threads 4 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux4_gemma3_270m_it_Q8.json
+
+
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-f32.gguf \
+    --threads 2 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux2_gemma3_270m_it_f32.json
+
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-f32.gguf \
+    --threads 4 --context 1024 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux4_gemma3_270m_it_f32.json
+
+
 
 python3 llm_benchmark.py \
     --model ../models/qwen2.5-0.5b-instruct-bf16.gguf \
@@ -127,7 +169,7 @@ sampling (which only runs after load) can't see.
 ```sh
 cd llm
 python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-[ver].gguf \
+    --model ../models/gemma-3-270m-it-Q8_0.gguf \
     --threads 2 \
     --context 1024 \
     --max-tokens 128 \

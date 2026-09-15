@@ -1,0 +1,4 @@
+# Raspberry Pi 5 (aarch64 Linux, Python 3.12) — llama_cpp_python CPU wheel
+# prebuilt for this target. See ../wheels/ (built with CMAKE_ARGS="-DGGML_NATIVE=ON").
+../wheels/llama_cpp_python-0.3.16-cp312-cp312-linux_aarch64.whl
+psutil  # optional: powers avg/peak RSS tracking; scripts degrade gracefully without it

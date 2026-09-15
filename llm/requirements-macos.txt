@@ -1,0 +1,11 @@
+# macOS (Apple Silicon or Intel) — no prebuilt wheel for this target, so
+# llama-cpp-python builds from source via pip/cmake at install time. Set
+# build flags as an env var before installing (pip doesn't read them from
+# this file):
+#   CMAKE_ARGS="-DGGML_NATIVE=ON" pip install -r requirements-macos.txt
+# Add "-DGGML_METAL=ON" to CMAKE_ARGS to also build Metal GPU support. Note
+# llm_benchmark.py hardcodes n_gpu_layers=0 (CPU-only, for apples-to-apples
+# comparison with the Pi 5/Astra numbers), so Metal won't be used unless the
+# script is also changed to pass n_gpu_layers > 0.
+llama-cpp-python
+psutil  # optional: powers avg/peak RSS tracking; scripts degrade gracefully without it

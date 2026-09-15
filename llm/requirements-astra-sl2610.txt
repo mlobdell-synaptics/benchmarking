@@ -1,0 +1,7 @@
+# Astra SL2610 (aarch64 Linux, Python 3.12) — same wheel ABI as the Pi 5 build,
+# so it reuses the prebuilt CPU wheel. See ../wheels/
+# (built with CMAKE_ARGS="-DGGML_NATIVE=ON"). This file is for CPU-only
+# llm_benchmark.py runs; for the Torq NPU path (llm_benchmark_torq.py, SL2619)
+# see requirements-torq.txt instead.
+../wheels/llama_cpp_python-0.3.16-cp312-cp312-linux_aarch64.whl
+psutil  # optional: powers avg/peak RSS tracking; scripts degrade gracefully without it

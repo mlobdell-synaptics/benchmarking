@@ -151,7 +151,7 @@ python3 detect_ultralytics.py \
 python3 detect_litert.py \
     --model ../models/yolov8n_int8.tflite \
     --source 0 \
-    --threads 2 \
+    --threads 4 \
     --conf 0.25 --iou 0.45 \
     --duration 60 \
     --no-display \
@@ -184,7 +184,7 @@ export WAYLAND_DISPLAY=wayland-1
 ## With power measurement (any script)
 ```sh
 python3 detect_litert.py \
-    --model yolov8n_full_integer_quant.tflite \
+    --model ../models/yolov8n_int8.tflite \
     --no-display \
     --duration 60 \
     --power \
