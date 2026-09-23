@@ -185,6 +185,37 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def runner_tokens_per_second(result: BenchmarkResult) -> float | None:
+    """NPU-reported decode speed for one result, or None if unavailable.
+
+    Derived from the Torq runtime's own timers (`runner_generation_seconds`),
+    not the wall-clock `tokens_per_second` used to compare against llm_benchmark.py.
+    """
+    if result.runner_generation_seconds is None:
+        return None
+    if result.runner_generation_seconds <= 0:
+        return 0.0
+    return result.output_tokens / result.runner_generation_seconds
+
+
+def npu_summary_fields(results: list[BenchmarkResult]) -> dict[str, float]:
+    """Mean/median NPU-reported TTFT and tokens/s, for results that have them."""
+    npu_timed = [r for r in results if r.runner_ttft_seconds is not None]
+    if not npu_timed:
+        return {}
+    speeds = [runner_tokens_per_second(r) for r in npu_timed]
+    return {
+        "mean_runner_ttft_seconds": statistics.fmean(
+            r.runner_ttft_seconds for r in npu_timed
+        ),
+        "median_runner_ttft_seconds": statistics.median(
+            r.runner_ttft_seconds for r in npu_timed
+        ),
+        "mean_runner_tokens_per_second": statistics.fmean(speeds),
+        "median_runner_tokens_per_second": statistics.median(speeds),
+    }
+
+
 def resolve_model_file(path: Path) -> Path:
     """Return the primary .vmfb: `path` itself if a file, else the first known
     model-file-set inside the directory."""
@@ -445,10 +476,10 @@ def main() -> int:
             print_result(result)
             if result.runner_ttft_seconds is not None:
                 print(
-                    f"Runtime TTFT:        {result.runner_ttft_seconds:.3f} s "
-                    f"(NPU-reported)\n"
-                    f"Runtime generation:  {result.runner_generation_seconds:.3f} s "
-                    f"(NPU-reported)"
+                    f"NPU-reported TTFT:   {result.runner_ttft_seconds:.3f} s\n"
+                    f"NPU-reported speed:  "
+                    f"{runner_tokens_per_second(result):.2f} tokens/s "
+                    f"(generation: {result.runner_generation_seconds:.3f} s)"
                 )
 
         if sampler is not None:
@@ -471,6 +502,7 @@ def main() -> int:
         return 1
 
     summary = build_summary(results)
+    summary.update(npu_summary_fields(results))
     report = {
         "configuration": {
             "model": str(model_file.resolve()),
@@ -512,6 +544,20 @@ def main() -> int:
         f"Median generation speed: "
         f"{summary['median_tokens_per_second']:.2f} tokens/s"
     )
+    if "mean_runner_ttft_seconds" in summary:
+        print(f"Mean NPU TTFT:           {summary['mean_runner_ttft_seconds']:.3f} s")
+        print(
+            f"Median NPU TTFT:         "
+            f"{summary['median_runner_ttft_seconds']:.3f} s"
+        )
+        print(
+            f"Mean NPU speed:          "
+            f"{summary['mean_runner_tokens_per_second']:.2f} tokens/s"
+        )
+        print(
+            f"Median NPU speed:        "
+            f"{summary['median_runner_tokens_per_second']:.2f} tokens/s"
+        )
     if "mean_avg_rss_mb" in summary:
         print(f"Mean avg RSS:            {summary['mean_avg_rss_mb']:.1f} MiB")
         print(f"Max peak RSS:            {summary['max_peak_rss_mb']:.1f} MiB")
