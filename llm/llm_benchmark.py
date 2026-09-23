@@ -164,6 +164,15 @@ def parse_args() -> argparse.Namespace:
         help="Run one unreported warm-up request. Default: enabled.",
     )
     parser.add_argument(
+        "--memory-sampling",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Sample RSS memory after every streamed token. Default: enabled. "
+        "Each sample is a psutil syscall inside the timed region, so "
+        "--no-memory-sampling gives a leaner tokens_per_second/ttft_seconds "
+        "at the cost of losing avg/peak_rss_mb per question.",
+    )
+    parser.add_argument(
         "--verbose-model",
         action="store_true",
         help="Show llama.cpp model-loading and runtime logs.",
@@ -285,6 +294,7 @@ def benchmark_question(
     print_stream: bool = True,
     sampler: Any = None,
     idle_power_mw: float | None = None,
+    track_memory: bool = True,
 ) -> BenchmarkResult:
     messages = [
         {
@@ -332,9 +342,10 @@ def benchmark_question(
             if print_stream:
                 print(text, end="", flush=True)
 
-            sample = rss_mb()
-            if sample is not None:
-                rss_samples_mb.append(sample)
+            if track_memory:
+                sample = rss_mb()
+                if sample is not None:
+                    rss_samples_mb.append(sample)
 
         end = time.perf_counter()
     finally:
@@ -594,6 +605,7 @@ def main() -> int:
                     temperature=args.temperature,
                     sampler=sampler,
                     idle_power_mw=idle_power_mw,
+                    track_memory=args.memory_sampling,
                 )
             except KeyboardInterrupt:
                 print("\nBenchmark interrupted.", file=sys.stderr)
@@ -634,6 +646,7 @@ def main() -> int:
             "max_tokens": args.max_tokens,
             "temperature": args.temperature,
             "warmup": args.warmup,
+            "memory_sampling": args.memory_sampling,
             "quiesce_display": args.quiesce_display,
             "quiesce_wifi": args.quiesce_wifi,
             "quiesce_network": args.quiesce_network,

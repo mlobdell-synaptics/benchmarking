@@ -159,6 +159,15 @@ def parse_args() -> argparse.Namespace:
         help="Run one unreported warm-up question. Default: enabled.",
     )
     parser.add_argument(
+        "--memory-sampling",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Sample RSS memory after every streamed token. Default: enabled. "
+        "Each sample is a psutil syscall inside the timed region, so "
+        "--no-memory-sampling gives a leaner tokens_per_second/ttft_seconds "
+        "at the cost of losing avg/peak_rss_mb per question.",
+    )
+    parser.add_argument(
         "--power",
         action="store_true",
         help="Measure board power per question with an INA219 (see "
@@ -200,6 +209,7 @@ def benchmark_question_torq(
     print_stream: bool = True,
     sampler: Any = None,
     idle_power_mw: float | None = None,
+    track_memory: bool = True,
 ) -> BenchmarkResult:
     prompt_tokens = len(gemma3.tokenize(question, "user"))
 
@@ -221,9 +231,10 @@ def benchmark_question_torq(
                 pieces.append(chunk)
                 if print_stream:
                     print(chunk, end="", flush=True)
-                sample = rss_mb()
-                if sample is not None:
-                    rss_samples_mb.append(sample)
+                if track_memory:
+                    sample = rss_mb()
+                    if sample is not None:
+                        rss_samples_mb.append(sample)
             if index + 1 >= max_tokens:
                 break
         end = time.perf_counter()
@@ -422,6 +433,7 @@ def main() -> int:
                     max_tokens=args.max_tokens,
                     sampler=sampler,
                     idle_power_mw=idle_power_mw,
+                    track_memory=args.memory_sampling,
                 )
             except KeyboardInterrupt:
                 print("\nBenchmark interrupted.", file=sys.stderr)
@@ -474,6 +486,7 @@ def main() -> int:
             "top_k": args.top_k,
             "instruct_model": args.instruct_model,
             "warmup": args.warmup,
+            "memory_sampling": args.memory_sampling,
             "quiesce_display": args.quiesce_display,
             "quiesce_wifi": args.quiesce_wifi,
             "power_measured": sampler is not None,
