@@ -130,6 +130,11 @@ def _systemctl(action: str, unit: str) -> tuple[bool, str]:
         return False, f"{unit}: {action} skipped ({exc})"
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or "unknown error"
+        # Exit code 5 is systemd's "unit not found" - expected when a unit
+        # from DISPLAY_SERVICES/NETWORK_SERVICES belongs to a different
+        # platform than the one this is running on. Not a real failure.
+        if result.returncode == 5 and "not found" in detail.lower():
+            return True, f"{unit}: {action} skipped (not installed)"
         return False, f"{unit}: {action} failed ({detail})"
     return True, f"{unit}: {action} ok"
 
