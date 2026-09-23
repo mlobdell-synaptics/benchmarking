@@ -12,6 +12,7 @@ Mirrors torq-examples/gemma3/setup_demo.py without its utils/ dependency.
 """
 
 import argparse
+import os
 from pathlib import Path
 
 # Add a Qwen entry here when its Torq VMFB is published.
@@ -50,6 +51,12 @@ def main():
         default=None,
         help="Destination directory (default: ../models/Synaptics/<repo-basename>/).",
     )
+    parser.add_argument(
+        "--token",
+        default=None,
+        help="HF access token for private repos. Defaults to the HF_TOKEN env var, "
+        "then any token cached by `huggingface-cli login`.",
+    )
     args = parser.parse_args()
 
     try:
@@ -57,11 +64,13 @@ def main():
     except ImportError:
         raise SystemExit("huggingface_hub is required: pip install huggingface_hub")
 
+    token = args.token or os.environ.get("HF_TOKEN")
+
     repo_id = REPO_MAP.get(args.model, args.model)
     dest = Path(args.dest) if args.dest else MODELS_ROOT / repo_id.split("/")[-1]
     dest.mkdir(parents=True, exist_ok=True)
 
-    api = HfApi()
+    api = HfApi(token=token)
     repo_files = set(api.list_repo_files(repo_id=repo_id))
 
     model_set = next(
@@ -82,7 +91,9 @@ def main():
 
     print(f"Downloading {repo_id} -> {dest}")
     for name in wanted:
-        path = hf_hub_download(repo_id=repo_id, filename=name, local_dir=str(dest))
+        path = hf_hub_download(
+            repo_id=repo_id, filename=name, local_dir=str(dest), token=token
+        )
         print(f"  {name} -> {path}")
 
     print(f"\nDone. Run:\n  python3 llm_benchmark_torq.py --model {dest}")
