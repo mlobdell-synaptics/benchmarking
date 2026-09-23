@@ -243,9 +243,12 @@ pre-compiled VMFB model; the Torq runner code is vendored under `torq_llm/`
 
 ## Install
 
-```sh
-pip install -r requirements-torq.txt
-# plus the Torq runtime wheel — see ../object_detection/README.md
+```bash
+pip install --upgrade pip
+
+pip install https://github.com/synaptics-torq/torq-compiler/releases/download/v2.1.0/torq_runtime-2.1.0-cp312-cp312-manylinux_2_28_aarch64.whl
+
+pip install -r requirements.txt
 ```
 
 ## Download the model
