@@ -29,7 +29,7 @@ hardcodes CPU-only execution).
 
 # Download models to test
 
-## Post Training Quantization (PTQ)
+## GGUF Post Training Quantization (PTQ) (INT4, INT8)
 ```sh
 cd models
 wget https://huggingface.co/jaewoo49/gemm-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
@@ -37,14 +37,24 @@ wget https://huggingface.co/jaewoo49/gemm-3-270m-it-Q4_K_M-GGUF/resolve/main/gem
 wget https://huggingface.co/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q8_0.gguf
 ```
 
-## Quantization Arware Training (QAT)
+## GGUF Quantization Arware Training (QAT) (INT4)
 ```sh
 wget https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/resolve/main/gemma-3-270m-it-qat-Q4_0.gguf
 
 wget https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
 ```
 
-## BF16 (full precision)
+## VMFB INT8 (Torq NPU)
+
+Fetch models with this
+
+```sh
+python fetch_torq_llm.py --model gemma3-it
+python fetch_torq_llm.py --model gemma3-it-q8
+```
+
+
+## GGUF BF16 (full precision)
 
 `llm_benchmark.py` takes any GGUF path, so a BF16 comparison run needs no code
 changes — just a BF16 weight file.
@@ -80,38 +90,38 @@ Run them the same way as any other GGUF (see Run, below):
 cd llm
 python3 llm_benchmark.py \
     --model ../models/google_gemma-3-270m-it-bf16.gguf \
-    --threads 2 --context 1024 --max-tokens 128 \
+    --threads 2 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output raspi_cpux2_gemma3_270m_it_bf16.json
 
 python3 llm_benchmark.py \
     --model ../models/google_gemma-3-270m-it-bf16.gguf \
-    --threads 4 --context 1024 --max-tokens 128 \
+    --threads 4 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output raspi_cpux4_gemma3_270m_it_bf16.json
 
 python3 llm_benchmark.py \
     --model ../models/gemma-3-270m-it-Q8_0.gguf \
-    --threads 2 --context 1024 --max-tokens 128 \
+    --threads 2 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output raspi_cpux2_gemma3_270m_it_Q8.json
 
 python3 llm_benchmark.py \
     --model ../models/gemma-3-270m-it-Q8_0.gguf \
-    --threads 4 --context 1024 --max-tokens 128 \
+    --threads 4 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output raspi_cpux4_gemma3_270m_it_Q8.json
 
 
 python3 llm_benchmark.py \
     --model ../models/gemma-3-270m-it-f32.gguf \
-    --threads 2 --context 1024 --max-tokens 128 \
+    --threads 2 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output raspi_cpux2_gemma3_270m_it_f32.json
 
 python3 llm_benchmark.py \
     --model ../models/gemma-3-270m-it-f32.gguf \
-    --threads 4 --context 1024 --max-tokens 128 \
+    --threads 4 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output raspi_cpux4_gemma3_270m_it_f32.json
 
@@ -119,7 +129,7 @@ python3 llm_benchmark.py \
 
 python3 llm_benchmark.py \
     --model ../models/qwen2.5-0.5b-instruct-bf16.gguf \
-    --threads 2 --context 1024 --max-tokens 128 \
+    --threads 2 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output llama_cpp/qwen2.5_0.5b_instruct_bf16.json
 ```
@@ -151,7 +161,7 @@ Run it the same way as any other GGUF (see Run, below):
 cd llm
 python3 llm_benchmark.py \
     --model ../models/gemma-3-270m-it-f32.gguf \
-    --threads 2 --context 1024 --max-tokens 128 \
+    --threads 2 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output llama_cpp/gemma3_270m_it_f32.json
 ```
@@ -171,7 +181,7 @@ cd llm
 python3 llm_benchmark.py \
     --model ../models/gemma-3-270m-it-Q8_0.gguf \
     --threads 2 \
-    --context 1024 \
+    --context 256 \
     --max-tokens 128 \
     --questions questions.txt \
     --output results.json
@@ -257,6 +267,15 @@ python3 llm_benchmark_torq.py \
     --questions questions.txt \
     --output gemma3_it_torq.json
 ```
+```sh
+python3 llm_benchmark_torq.py \
+    --model ../models/Synaptics/gemma-3-270m-it-int8-dynamic-quantize-torq \
+    --threads 2 \
+    --max-tokens 128 \
+    --questions questions.txt \
+    --output gemma3_it_torq.json
+```
+
 (`--threads` defaults to the core count anyway — 2 on the SL2619.)
 
 The script enables the NPU clock and pins the NPU to max frequency for the run

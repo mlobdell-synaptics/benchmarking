@@ -18,6 +18,7 @@ from pathlib import Path
 REPO_MAP = {
     "gemma3-it": "Synaptics/gemma-3-270m-it-torq",
     "gemma3": "Synaptics/gemma-3-270m-torq",
+    "gemma3-it-q8", "Synaptics/gemma-3-270m-it-int8-dynamic-quantize-torq"
 }
 
 # First set whose every file exists on the repo is downloaded. The primary
