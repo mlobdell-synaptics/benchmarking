@@ -248,7 +248,7 @@ pip install --upgrade pip
 
 pip install https://github.com/synaptics-torq/torq-compiler/releases/download/v2.2.1/torq_runtime-2.2.1-cp312-cp312-manylinux_2_39_aarch64.whl
 
-pip install -r requirements.txt
+pip install -r requirements-astra-sl2610.txt
 ```
 
 ## Download the model
@@ -256,8 +256,18 @@ pip install -r requirements.txt
 ```sh
 python3 fetch_torq_llm.py                 # Synaptics/gemma-3-270m-it-torq
 ```
-Lands in `../models/Synaptics/gemma-3-270m-it-torq/` (VMFB + tokenizer/config/
-embeddings). A Qwen VMFB can be added later via `REPO_MAP` in that script
+Default lands in `../models/Synaptics/gemma-3-270m-it-torq/` (VMFB + tokenizer/config/
+embeddings). 
+
+
+To fetch int8 gemma3 270m for Torq 
+
+```sh
+python3 fetch_torq_llm.py --model gemma3-it-q8
+```
+
+
+A Qwen VMFB can be added later via `REPO_MAP` in that script
 (`python3 fetch_torq_llm.py --model qwen`).
 
 ## Run
