@@ -318,7 +318,7 @@ python3 ../utils/system_services.py enable all      # or: display / wifi
 | `--max-input-tokens` | unset | Truncate/pad each prompt to this many tokens. |
 | `--kv-cache-window N` / `--no-kv-cache-window` | 2 | Sliding-window KV cache size. |
 | `--instruct-model` / `--no-instruct-model` | on | Gemma-3 chat template + system prompt. |
-| `--tda {cpu,dmabuf}` | `cpu` | Torq buffer allocator. `dmabuf` needs a working `/dev/dma_heap` XRAM heap or inference fails with `xram_write: accessing memory out of bounds`. |
+| `--tda {cpu,dmabuf}` | `dmabuf` | Torq buffer allocator (zero-copy NPU access). Needs a working `/dev/dma_heap` XRAM heap; fall back to `cpu` if inference fails with `xram_write: accessing memory out of bounds`. |
 | `--device-io` / `--no-device-io` | off | Keep KV-cache tensors as device arrays. |
 | `--no-npu-setup` | off | Skip the NPU clock-enable + frequency pin. |
 | `--quiesce-display` / `--no-quiesce-display` | on | Stop Weston for the run, restart on exit. |

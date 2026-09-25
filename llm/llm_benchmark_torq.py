@@ -119,10 +119,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--tda",
         choices=["cpu", "dmabuf"],
-        default="cpu",
-        help="Torq buffer allocator. Default: cpu. 'dmabuf' needs a working "
-        "/dev/dma_heap XRAM heap or inference fails with 'xram_write: accessing "
-        "memory out of bounds'.",
+        default="dmabuf",
+        help="Torq buffer allocator. Default: dmabuf (zero-copy NPU access). "
+        "Needs a working /dev/dma_heap XRAM heap; falls back to 'cpu' if "
+        "inference fails with 'xram_write: accessing memory out of bounds'.",
     )
     parser.add_argument(
         "--device-io",
