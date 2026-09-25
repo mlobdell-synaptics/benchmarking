@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Plot benchmark results: tokens/second vs power, and inferences per joule.
+
+Each column in the results CSV (one run: platform + engine + quant) is
+plotted as its own labeled series/point (scatter) or bar (bar chart).
+
+Usage:
+    python plot_tps_vs_power.py [path/to/results.csv] [-o scatter.png] [-b bar.png]
+"""
+import argparse
+import sys
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Fixed-order categorical palette (dataviz skill reference palette, light mode).
+CATEGORICAL_COLORS = [
+    "#2a78d6",  # blue
+    "#eb6834",  # orange
+    "#1baf7a",  # aqua
+    "#eda100",  # yellow
+    "#e87ba4",  # magenta
+    "#008300",  # green
+    "#4a3aa7",  # violet
+    "#e34948",  # red
+]
+
+INK = "#0b0b0b"
+SECONDARY_INK = "#52514e"
+MUTED = "#898781"
+GRID = "#e1e0d9"
+SURFACE = "#fcfcfb"
+
+
+def load_runs(csv_path: Path) -> pd.DataFrame:
+    raw = pd.read_csv(csv_path, index_col=0)
+    df = raw.transpose()
+    df.columns = [str(c).strip() for c in df.columns]
+    df["mean_tokens_per_second"] = pd.to_numeric(df["mean_tokens_per_second"], errors="coerce")
+    df["mean power (w)"] = pd.to_numeric(df["mean power (w)"], errors="coerce")
+    df["Inferences per Joule"] = pd.to_numeric(df["Inferences per Joule"], errors="coerce")
+    df["peak memory (mb)"] = pd.to_numeric(df["peak memory (mb)"], errors="coerce")
+    df["net power(w)"] = pd.to_numeric(df["net power(w)"], errors="coerce")
+    df["Inferences per Joule (net)"] = pd.to_numeric(
+        df["Inferences per Joule (net)"], errors="coerce"
+    )
+    df = df.dropna(subset=["mean_tokens_per_second", "mean power (w)"])
+    df["label"] = (
+        df["Platform"].astype(str).str.strip()
+        + "_"
+        + df["Engine"].astype(str).str.strip()
+        + "_"
+        + df["Model Quant"].astype(str).str.strip()
+    )
+    return df
+
+
+def plot_scatter(
+    df: pd.DataFrame,
+    x_column: str,
+    x_label: str,
+    title: str,
+    out_path: Path,
+) -> None:
+    df = df.dropna(subset=[x_column])
+    fig, ax = plt.subplots(figsize=(10, 7), facecolor=SURFACE)
+    ax.set_facecolor(SURFACE)
+
+    for i, (_, row) in enumerate(df.iterrows()):
+        color = CATEGORICAL_COLORS[i % len(CATEGORICAL_COLORS)]
+        x = row[x_column]
+        y = row["mean_tokens_per_second"]
+        ax.scatter(
+            x, y,
+            s=110,
+            color=color,
+            edgecolor=SURFACE,
+            linewidth=1.2,
+            zorder=3,
+            label=row["label"],
+        )
+        ax.annotate(
+            row["label"],
+            (x, y),
+            textcoords="offset points",
+            xytext=(8, 8),
+            fontsize=9,
+            color=INK,
+        )
+
+    ax.set_xlabel(x_label, fontsize=12, color=INK)
+    ax.set_ylabel("Mean Tokens per Second", fontsize=12, color=INK)
+    ax.set_title(title, fontsize=13, color=INK, pad=14)
+    ax.margins(x=0.15, y=0.15)
+
+    ax.grid(True, color=GRID, linewidth=0.8, zorder=0)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color(MUTED)
+    ax.tick_params(colors=SECONDARY_INK)
+
+    ax.legend(
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        frameon=False,
+        fontsize=9,
+        title="Platform_Engine_Quant",
+        title_fontsize=9,
+    )
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    print(f"Saved plot to {out_path}")
+
+
+def plot_bar_metric(df: pd.DataFrame, column: str, ylabel: str, title: str, out_path: Path, value_fmt: str = "{:.2f}") -> None:
+    df = df.dropna(subset=[column])
+    fig, ax = plt.subplots(figsize=(10, 7), facecolor=SURFACE)
+    ax.set_facecolor(SURFACE)
+
+    x_positions = range(len(df))
+    for i, (x, (_, row)) in enumerate(zip(x_positions, df.iterrows())):
+        color = CATEGORICAL_COLORS[i % len(CATEGORICAL_COLORS)]
+        value = row[column]
+        ax.bar(
+            x, value,
+            color=color,
+            edgecolor=SURFACE,
+            linewidth=1.2,
+            zorder=3,
+            label=row["label"],
+            width=0.7,
+        )
+        ax.annotate(
+            value_fmt.format(value),
+            (x, value),
+            textcoords="offset points",
+            xytext=(0, 6),
+            ha="center",
+            fontsize=9,
+            color=INK,
+        )
+
+    ax.set_xticks(list(x_positions))
+    ax.set_xticklabels(df["label"], rotation=30, ha="right", fontsize=9, color=SECONDARY_INK)
+    ax.set_xlabel("Platform / Engine / Quant", fontsize=12, color=INK)
+    ax.set_ylabel(ylabel, fontsize=12, color=INK)
+    ax.set_title(title, fontsize=13, color=INK, pad=14)
+    ax.margins(x=0.1)
+    ax.set_ylim(0, df[column].max() * 1.15)
+
+    ax.grid(True, axis="y", color=GRID, linewidth=0.8, zorder=0)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color(MUTED)
+    ax.tick_params(colors=SECONDARY_INK)
+
+    ax.legend(
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        frameon=False,
+        fontsize=9,
+        title="Platform_Engine_Quant",
+        title_fontsize=9,
+    )
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    print(f"Saved plot to {out_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "csv_path",
+        nargs="?",
+        default="gemma_benchmarking_results_sept_7.csv",
+        help="Path to the benchmark results CSV (default: gemma_benchmarking_results_sept_7.csv)",
+    )
+    parser.add_argument(
+        "-o", "--output",
+        default="tokens_per_second_vs_power.png",
+        help="Scatter plot output image path (default: tokens_per_second_vs_power.png)",
+    )
+    parser.add_argument(
+        "-b", "--bar-output",
+        default="inferences_per_joule.png",
+        help="Inferences-per-joule bar chart output image path (default: inferences_per_joule.png)",
+    )
+    parser.add_argument(
+        "-m", "--memory-output",
+        default="peak_memory.png",
+        help="Peak-memory bar chart output image path (default: peak_memory.png)",
+    )
+    parser.add_argument(
+        "-p", "--net-power-output",
+        default="tokens_per_second_vs_net_power.png",
+        help="Tokens/second vs net power scatter plot output image path "
+        "(default: tokens_per_second_vs_net_power.png)",
+    )
+    parser.add_argument(
+        "-j", "--net-ipj-output",
+        default="inferences_per_joule_net.png",
+        help="Net inferences-per-joule bar chart output image path "
+        "(default: inferences_per_joule_net.png)",
+    )
+    args = parser.parse_args()
+
+    csv_path = Path(args.csv_path)
+    if not csv_path.exists():
+        sys.exit(f"CSV file not found: {csv_path}")
+
+    df = load_runs(csv_path)
+    plot_scatter(
+        df, "mean power (w)", "Mean Power (W)",
+        "Mean Tokens/Second vs Mean Power by Platform / Engine / Quant",
+        Path(args.output),
+    )
+    plot_scatter(
+        df, "net power(w)", "Net Power (W)",
+        "Mean Tokens/Second vs Net Power by Platform / Engine / Quant",
+        Path(args.net_power_output),
+    )
+    plot_bar_metric(
+        df, "Inferences per Joule", "Inferences per Joule",
+        "Inferences per Joule by Platform / Engine / Quant",
+        Path(args.bar_output),
+    )
+    plot_bar_metric(
+        df, "peak memory (mb)", "Peak Memory (MB)",
+        "Peak Memory by Platform / Engine / Quant",
+        Path(args.memory_output), value_fmt="{:.0f}",
+    )
+    plot_bar_metric(
+        df, "Inferences per Joule (net)", "Inferences per Joule (net)",
+        "Inferences per Joule (net) by Platform / Engine / Quant",
+        Path(args.net_ipj_output),
+    )
+
+
+if __name__ == "__main__":
+    main()
