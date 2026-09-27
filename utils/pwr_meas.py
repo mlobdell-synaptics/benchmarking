@@ -20,7 +20,7 @@ sees the total power going into the board:
 
 Enable I2C once with `sudo raspi-config` (Interface Options -> I2C) or
 `dtparam=i2c_arm=on` in /boot/firmware/config.txt, then confirm the chip is
-visible:  `i2cdetect -y 1`  should show a device at 0x40.
+visible:  `i2cdetect -y -r 2`  should show a device at 0x40.
 
 For the fastest sampling, also raise the bus clock to 400 kHz:
 `dtparam=i2c_arm_baudrate=400000` in /boot/firmware/config.txt.
@@ -66,7 +66,7 @@ from dataclasses import dataclass, field
 _logger = logging.getLogger(__name__)
 
 
-DEFAULT_I2C_BUS = 1
+DEFAULT_I2C_BUS = 2
 DEFAULT_I2C_ADDRESS = 0x40
 DEFAULT_SHUNT_OHMS = 0.1
 DEFAULT_LABEL = "USB"

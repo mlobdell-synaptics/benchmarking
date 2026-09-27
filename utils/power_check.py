@@ -66,7 +66,7 @@ def connect(args) -> PowerMonitor:
     except Exception as exc:
         print(f"[{FAIL}] Could not open the INA219: {exc}\n")
         print("  - Is I2C enabled and the chip wired up?")
-        print(f"      i2cdetect -y {args.bus}      # expect a device at "
+        print(f"      i2cdetect -y -r 2 {args.bus}      # expect a device at "
               f"0x{args.address:02x}")
         print("  - Missing library?   pip install smbus2")
         print("  - Wrong address?     pass --address 0x<addr>")
