@@ -46,7 +46,11 @@ def load_runs(csv_path: Path) -> pd.DataFrame:
 
     df["mean fps - inference only"] = pd.to_numeric(df["mean fps - inference only"], errors="coerce")
     df["mean power (w)"] = pd.to_numeric(df["mean power (w)"], errors="coerce")
+    df["net power(w)"] = pd.to_numeric(df["net power(w)"], errors="coerce")
     df["Inferences per Joule"] = pd.to_numeric(df["Inferences per Joule"], errors="coerce")
+    df["Inferences per Joule (net)"] = pd.to_numeric(
+        df["Inferences per Joule (net)"], errors="coerce"
+    )
     df = df.dropna(subset=["mean fps - inference only", "mean power (w)"])
 
     df["label"] = (
@@ -59,13 +63,20 @@ def load_runs(csv_path: Path) -> pd.DataFrame:
     return df
 
 
-def plot_scatter(df: pd.DataFrame, out_path: Path) -> None:
+def plot_scatter(
+    df: pd.DataFrame,
+    x_column: str,
+    x_label: str,
+    title: str,
+    out_path: Path,
+) -> None:
+    df = df.dropna(subset=[x_column])
     fig, ax = plt.subplots(figsize=(10, 7), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
 
     for i, (_, row) in enumerate(df.iterrows()):
         color = CATEGORICAL_COLORS[i % len(CATEGORICAL_COLORS)]
-        x = row["mean power (w)"]
+        x = row[x_column]
         y = row["mean fps - inference only"]
         ax.scatter(
             x, y,
@@ -85,12 +96,9 @@ def plot_scatter(df: pd.DataFrame, out_path: Path) -> None:
             color=INK,
         )
 
-    ax.set_xlabel("Mean Power (W)", fontsize=12, color=INK)
+    ax.set_xlabel(x_label, fontsize=12, color=INK)
     ax.set_ylabel("Mean FPS", fontsize=12, color=INK)
-    ax.set_title(
-        "Mean FPS vs Mean Power by Platform / Engine / Quant",
-        fontsize=13, color=INK, pad=14,
-    )
+    ax.set_title(title, fontsize=13, color=INK, pad=14)
     ax.margins(x=0.15, y=0.15)
 
     ax.grid(True, color=GRID, linewidth=0.8, zorder=0)
@@ -105,7 +113,7 @@ def plot_scatter(df: pd.DataFrame, out_path: Path) -> None:
         bbox_to_anchor=(1.02, 1.0),
         frameon=False,
         fontsize=9,
-        title="Platform_Engine_Quant",
+        title="Platform",
         title_fontsize=9,
     )
 
@@ -114,15 +122,15 @@ def plot_scatter(df: pd.DataFrame, out_path: Path) -> None:
     print(f"Saved plot to {out_path}")
 
 
-def plot_bar(df: pd.DataFrame, out_path: Path) -> None:
-    df = df.dropna(subset=["Inferences per Joule"])
+def plot_bar(df: pd.DataFrame, column: str, ylabel: str, title: str, out_path: Path) -> None:
+    df = df.dropna(subset=[column])
     fig, ax = plt.subplots(figsize=(10, 7), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
 
     x_positions = range(len(df))
     for i, (x, (_, row)) in enumerate(zip(x_positions, df.iterrows())):
         color = CATEGORICAL_COLORS[i % len(CATEGORICAL_COLORS)]
-        value = row["Inferences per Joule"]
+        value = row[column]
         ax.bar(
             x, value,
             color=color,
@@ -144,14 +152,11 @@ def plot_bar(df: pd.DataFrame, out_path: Path) -> None:
 
     ax.set_xticks(list(x_positions))
     ax.set_xticklabels(df["label"], rotation=30, ha="right", fontsize=9, color=SECONDARY_INK)
-    ax.set_xlabel("Platform / Engine / Quant", fontsize=12, color=INK)
-    ax.set_ylabel("Inferences per Joule", fontsize=12, color=INK)
-    ax.set_title(
-        "Inferences per Joule by Platform / Engine / Quant",
-        fontsize=13, color=INK, pad=14,
-    )
+    ax.set_xlabel("Platform", fontsize=12, color=INK)
+    ax.set_ylabel(ylabel, fontsize=12, color=INK)
+    ax.set_title(title, fontsize=13, color=INK, pad=14)
     ax.margins(x=0.1)
-    ax.set_ylim(0, df["Inferences per Joule"].max() * 1.15)
+    ax.set_ylim(0, df[column].max() * 1.15)
 
     ax.grid(True, axis="y", color=GRID, linewidth=0.8, zorder=0)
     for spine in ("top", "right"):
@@ -165,7 +170,7 @@ def plot_bar(df: pd.DataFrame, out_path: Path) -> None:
         bbox_to_anchor=(1.02, 1.0),
         frameon=False,
         fontsize=9,
-        title="Platform_Engine_Quant",
+        title="Platform",
         title_fontsize=9,
     )
 
@@ -192,6 +197,18 @@ def main():
         default="inferences_per_joule.png",
         help="Bar chart output image path (default: inferences_per_joule.png)",
     )
+    parser.add_argument(
+        "-p", "--net-power-output",
+        default="fps_vs_net_power.png",
+        help="FPS vs net power scatter plot output image path "
+        "(default: fps_vs_net_power.png)",
+    )
+    parser.add_argument(
+        "-j", "--net-ipj-output",
+        default="inferences_per_joule_net.png",
+        help="Net inferences-per-joule bar chart output image path "
+        "(default: inferences_per_joule_net.png)",
+    )
     args = parser.parse_args()
 
     csv_path = Path(args.csv_path)
@@ -199,8 +216,26 @@ def main():
         sys.exit(f"CSV file not found: {csv_path}")
 
     df = load_runs(csv_path)
-    plot_scatter(df, Path(args.output))
-    plot_bar(df, Path(args.bar_output))
+    plot_scatter(
+        df, "mean power (w)", "Mean Power (W)",
+        "Mean FPS vs Mean Power by Platform",
+        Path(args.output),
+    )
+    plot_scatter(
+        df, "net power(w)", "Net Power (W)",
+        "Mean FPS vs Net Power by Platform",
+        Path(args.net_power_output),
+    )
+    plot_bar(
+        df, "Inferences per Joule", "Inferences per Joule",
+        "Inferences per Joule by Platform",
+        Path(args.bar_output),
+    )
+    plot_bar(
+        df, "Inferences per Joule (net)", "Inferences per Joule (net)",
+        "Inferences per Joule (net) by Platform",
+        Path(args.net_ipj_output),
+    )
 
 
 if __name__ == "__main__":

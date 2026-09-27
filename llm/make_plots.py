@@ -106,7 +106,7 @@ def plot_scatter(
         bbox_to_anchor=(1.02, 1.0),
         frameon=False,
         fontsize=9,
-        title="Platform_Engine_Quant",
+        title="Platform",
         title_fontsize=9,
     )
 
@@ -145,7 +145,7 @@ def plot_bar_metric(df: pd.DataFrame, column: str, ylabel: str, title: str, out_
 
     ax.set_xticks(list(x_positions))
     ax.set_xticklabels(df["label"], rotation=30, ha="right", fontsize=9, color=SECONDARY_INK)
-    ax.set_xlabel("Platform / Engine / Quant", fontsize=12, color=INK)
+    ax.set_xlabel("Platform", fontsize=12, color=INK)
     ax.set_ylabel(ylabel, fontsize=12, color=INK)
     ax.set_title(title, fontsize=13, color=INK, pad=14)
     ax.margins(x=0.1)
@@ -163,7 +163,7 @@ def plot_bar_metric(df: pd.DataFrame, column: str, ylabel: str, title: str, out_
         bbox_to_anchor=(1.02, 1.0),
         frameon=False,
         fontsize=9,
-        title="Platform_Engine_Quant",
+        title="Platform",
         title_fontsize=9,
     )
 
@@ -216,27 +216,27 @@ def main():
     df = load_runs(csv_path)
     plot_scatter(
         df, "mean power (w)", "Mean Power (W)",
-        "Mean Tokens/Second vs Mean Power by Platform / Engine / Quant",
+        "Mean Tokens/Second vs Mean Power by Platform",
         Path(args.output),
     )
     plot_scatter(
         df, "net power(w)", "Net Power (W)",
-        "Mean Tokens/Second vs Net Power by Platform / Engine / Quant",
+        "Mean Tokens/Second vs Net Power by Platform",
         Path(args.net_power_output),
     )
     plot_bar_metric(
         df, "Inferences per Joule", "Inferences per Joule",
-        "Inferences per Joule by Platform / Engine / Quant",
+        "Inferences per Joule by Platform",
         Path(args.bar_output),
     )
     plot_bar_metric(
         df, "peak memory (mb)", "Peak Memory (MB)",
-        "Peak Memory by Platform / Engine / Quant",
+        "Peak Memory by Platform",
         Path(args.memory_output), value_fmt="{:.0f}",
     )
     plot_bar_metric(
         df, "Inferences per Joule (net)", "Inferences per Joule (net)",
-        "Inferences per Joule (net) by Platform / Engine / Quant",
+        "Inferences per Joule (net) by Platform",
         Path(args.net_ipj_output),
     )
 
