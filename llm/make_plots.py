@@ -33,6 +33,19 @@ GRID = "#e1e0d9"
 SURFACE = "#fcfcfb"
 
 
+def _add_figure_border(fig) -> None:
+    fig.add_artist(
+        plt.Rectangle(
+            (0, 0), 1, 1,
+            transform=fig.transFigure,
+            fill=False,
+            edgecolor=INK,
+            linewidth=2,
+            zorder=10,
+        )
+    )
+
+
 def load_runs(csv_path: Path) -> pd.DataFrame:
     raw = pd.read_csv(csv_path, index_col=0)
     df = raw.transpose()
@@ -111,12 +124,26 @@ def plot_scatter(
     )
 
     fig.tight_layout()
+    _add_figure_border(fig)
     fig.savefig(out_path, dpi=200, facecolor=SURFACE)
     print(f"Saved plot to {out_path}")
 
 
-def plot_bar_metric(df: pd.DataFrame, column: str, ylabel: str, title: str, out_path: Path, value_fmt: str = "{:.2f}") -> None:
+def plot_bar_metric(
+    df: pd.DataFrame,
+    column: str,
+    ylabel: str,
+    title: str,
+    out_path: Path,
+    value_fmt: str = "{:.2f}",
+    sort_descending: bool = False,
+    sort_ascending: bool = False,
+) -> None:
     df = df.dropna(subset=[column])
+    if sort_descending:
+        df = df.sort_values(column, ascending=False)
+    elif sort_ascending:
+        df = df.sort_values(column, ascending=True)
     fig, ax = plt.subplots(figsize=(10, 7), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
 
@@ -168,6 +195,7 @@ def plot_bar_metric(df: pd.DataFrame, column: str, ylabel: str, title: str, out_
     )
 
     fig.tight_layout()
+    _add_figure_border(fig)
     fig.savefig(out_path, dpi=200, facecolor=SURFACE)
     print(f"Saved plot to {out_path}")
 
@@ -233,11 +261,13 @@ def main():
         df, "peak memory (mb)", "Peak Memory (MB)",
         "Peak Memory by Platform",
         Path(args.memory_output), value_fmt="{:.0f}",
+        sort_ascending=True,
     )
     plot_bar_metric(
         df, "Inferences per Joule (net)", "Inferences per Joule (net)",
         "Inferences per Joule (net) by Platform",
         Path(args.net_ipj_output),
+        sort_descending=True,
     )
 
 
