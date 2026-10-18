@@ -27,32 +27,53 @@ actually takes effect there; see the comments in `requirements-macos.txt` for
 the Metal-support flag (unused by `llm_benchmark.py` as written, which
 hardcodes CPU-only execution).
 
-# Download models to test
 
-## GGUF Post Training Quantization (PTQ) (INT4, INT8)
+# Model Download and testing
+
+## GGUF Q4_K_M (PTQ - Post Training Quantization)
+
+Download the model
 ```sh
-cd models
 wget https://huggingface.co/jaewoo49/gemm-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
+```
 
+Test the model
+```sh
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --threads 2 --context 256 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux2_gemma3_270m_it_Q8.json
+
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --threads 4 --context 256 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux4_gemma3_270m_it_Q8.json
+```
+
+
+## GGUF Q8_0
+
+Download the model
+```sh
 wget https://huggingface.co/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q8_0.gguf
 ```
 
-## GGUF Quantization Arware Training (QAT) (INT4)
+Test the model
 ```sh
-wget https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/resolve/main/gemma-3-270m-it-qat-Q4_0.gguf
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --threads 2 --context 256 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux2_gemma3_270m_it_Q8.json
 
-wget https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --threads 4 --context 256 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux4_gemma3_270m_it_Q8.json
 ```
-
-## VMFB INT8 (Torq NPU)
-
-Fetch models with this
-
-```sh
-python fetch_torq_llm.py --model gemma3-it
-python fetch_torq_llm.py --model gemma3-it-q8
-```
-
 
 ## GGUF BF16 (full precision)
 
@@ -64,26 +85,6 @@ above only has Q8_0).
 ```sh
 wget https://huggingface.co/bartowski/google_gemma-3-270m-it-GGUF/resolve/main/google_gemma-3-270m-it-bf16.gguf
 ```
-
-Qwen2.5-0.5B-Instruct: no repo (official or bartowski) publishes a BF16 file,
-only `f16` (fp16, not bf16). Convert it yourself from the original HF
-checkpoint with llama.cpp's converter (separate from `llama-cpp-python`):
-```sh
-git clone --depth 1 https://github.com/ggml-org/llama.cpp.git
-pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
-pip install -U "huggingface_hub[cli]"
-
-hf download Qwen/Qwen2.5-0.5B-Instruct --local-dir qwen2.5-0.5b-instruct-hf
-
-python3 llama.cpp/convert_hf_to_gguf.py qwen2.5-0.5b-instruct-hf \
-    --outtype bf16 \
-    --outfile qwen2.5-0.5b-instruct-bf16.gguf
-```
-
-Note: BF16 files are ~2x the Q8_0 size, and on CPUs without native BF16 SIMD
-kernels `ggml` typically upconverts to F32 for compute — so BF16 speed can
-land close to (or behind) F16/Q8_0 rather than being "full precision but
-fast." That's expected, not a bug in the run.
 
 Run them the same way as any other GGUF (see Run, below):
 ```sh
@@ -99,46 +100,12 @@ python3 llm_benchmark.py \
     --threads 4 --context 256 --max-tokens 128 \
     --questions questions.txt \
     --output raspi_cpux4_gemma3_270m_it_bf16.json
-
-python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-Q8_0.gguf \
-    --threads 2 --context 256 --max-tokens 128 \
-    --questions questions.txt \
-    --output raspi_cpux2_gemma3_270m_it_Q8.json
-
-python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-Q8_0.gguf \
-    --threads 4 --context 256 --max-tokens 128 \
-    --questions questions.txt \
-    --output raspi_cpux4_gemma3_270m_it_Q8.json
-
-
-python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-f32.gguf \
-    --threads 2 --context 256 --max-tokens 128 \
-    --questions questions.txt \
-    --output raspi_cpux2_gemma3_270m_it_f32.json
-
-python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-f32.gguf \
-    --threads 4 --context 256 --max-tokens 128 \
-    --questions questions.txt \
-    --output raspi_cpux4_gemma3_270m_it_f32.json
-
-
-
-python3 llm_benchmark.py \
-    --model ../models/qwen2.5-0.5b-instruct-bf16.gguf \
-    --threads 2 --context 256 --max-tokens 128 \
-    --questions questions.txt \
-    --output llama_cpp/qwen2.5_0.5b_instruct_bf16.json
 ```
 
 ## FP32 (full precision)
 
-No repo publishes an FP32 GGUF (it's ~2x the BF16 size for no accuracy
-benefit), so convert it yourself from the original HF checkpoint the same way
-as the Qwen BF16 case above, but with `--outtype f32`:
+FP32 is 2x BF16 and provides little accuracy improvement.
+
 ```sh
 git clone --depth 1 https://github.com/ggml-org/llama.cpp.git
 pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
@@ -151,22 +118,23 @@ python3 llama.cpp/convert_hf_to_gguf.py gemma-3-270m-it-hf \
     --outfile gemma-3-270m-it-f32.gguf
 ```
 
-Note: FP32 is ~4x the Q8_0 file size and ~2x BF16/F16, so expect the slowest
-load and highest RSS in the comparison table — that's the point of including
-it. Unlike BF16 (which `ggml` often upconverts to F32 anyway on CPUs without
-native BF16 kernels), this is the true "no quantization" baseline.
-
-Run it the same way as any other GGUF (see Run, below):
 ```sh
 cd llm
+## F32
 python3 llm_benchmark.py \
     --model ../models/gemma-3-270m-it-f32.gguf \
     --threads 2 --context 256 --max-tokens 128 \
     --questions questions.txt \
-    --output llama_cpp/gemma3_270m_it_f32.json
+    --output raspi_cpux2_gemma3_270m_it_f32.json
+
+python3 llm_benchmark.py \
+    --model ../models/gemma-3-270m-it-f32.gguf \
+    --threads 4 --context 256 --max-tokens 128 \
+    --questions questions.txt \
+    --output raspi_cpux4_gemma3_270m_it_f32.json
 ```
 
-# Run
+## Run
 
 Basic benchmark (TTFT, generation speed, end-to-end speed per question, plus a
 summary). Results are written to JSON. Process RSS (average and peak, sampled
@@ -179,26 +147,12 @@ sampling (which only runs after load) can't see.
 ```sh
 cd llm
 python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --model ../<model path>\
     --threads 2 \
     --context 256 \
     --max-tokens 128 \
     --questions questions.txt \
     --output results.json
-```
-
-With INA219 power measurement (average / peak / min power, energy per request,
-and mJ per output token, per question). Bus, address, shunt and sample rate are
-configured at the top of `../utils/pwr_meas.py`. Verify the circuit first with
-`python3 ../utils/power_check.py`.
-
-```sh
-python3 llm_benchmark.py \
-    --model gemma-3-270m-it-[ver].gguf \
-    --questions questions.txt \
-    --power \
-    --idle-seconds 5 \
-    --power-csv power.csv
 ```
 
 ## Options
@@ -246,31 +200,19 @@ pre-compiled VMFB model; the Torq runner code is vendored under `torq_llm/`
 ```bash
 pip install --upgrade pip
 
-pip install https://github.com/synaptics-torq/torq-compiler/releases/download/v2.2.1/torq_runtime-2.2.1-cp312-cp312-manylinux_2_39_aarch64.whl
+pip install torq-runtime
 
 pip install -r requirements-astra-sl2610.txt
 ```
 
-## Download the model
+## Download and Run
 
+
+### BF16
 ```sh
 python3 fetch_torq_llm.py                 # Synaptics/gemma-3-270m-it-torq
 ```
-Default lands in `../models/Synaptics/gemma-3-270m-it-torq/` (VMFB + tokenizer/config/
-embeddings). 
-
-
-To fetch int8 gemma3 270m for Torq 
-
-```sh
-python3 fetch_torq_llm.py --model gemma3-it-q8
-```
-
-
-A Qwen VMFB can be added later via `REPO_MAP` in that script
-(`python3 fetch_torq_llm.py --model qwen`).
-
-## Run
+Default lands in `../models/Synaptics/gemma-3-270m-it-torq/` (VMFB + tokenizer/config/embeddings). 
 
 ```sh
 python3 llm_benchmark_torq.py \
@@ -278,15 +220,52 @@ python3 llm_benchmark_torq.py \
     --threads 2 \
     --max-tokens 128 \
     --questions questions.txt \
-    --output gemma3_it_torq.json
+    --output torq_gemma3_it_bf16.json
 ```
+
+### Q8
+To fetch int8 gemma3 270m for Torq 
+
+```sh
+python3 fetch_torq_llm.py --model gemma3-it-q8 #Synaptics/gemma-3-270m-it-int8-torq
+```
+
 ```sh
 python3 llm_benchmark_torq.py \
-    --model ../models/Synaptics/gemma-3-270m-it-int8-dynamic-quantize-torq \
+    --model ../models/Synaptics/gemma-3-270m-it-int8-torq \
     --threads 2 \
     --max-tokens 128 \
     --questions questions.txt \
-    --output gemma3_it_torq.json
+    --output torq_gemma3_it_q8.json
+```
+
+
+### Q4
+
+```sh
+python3 fetch_torq_llm.py --model gemma3-it-q4 #Synaptics/gemma-3-270-GPTQ-int4-it-torq
+```
+
+```sh
+python3 llm_benchmark_torq.py \
+    --model ../models/Synaptics/gemma-3-270-GPTQ-int4-it-torq \
+    --threads 2 \
+    --max-tokens 128 \
+    --questions questions.txt \
+    --output torq_gemma3_it_q4.json
+```
+
+
+## Run
+
+
+```sh
+python3 llm_benchmark_torq.py \
+    --model ../<model path> \
+    --threads 2 \
+    --max-tokens 128 \
+    --questions questions.txt \
+    --output resilts.json
 ```
 
 (`--threads` defaults to the core count anyway — 2 on the SL2619.)
@@ -330,18 +309,18 @@ python3 ../utils/system_services.py enable all      # or: display / wifi
 To enable the serial connections on the 40-pin header (pins 14/15). 
 
 Open the boot config file: 
-```
+```sh
 sudo vim /boot/firmware/config.txt
 ```
 
 Add these lines to the bottom of the file:
-```
+```sh
 enable_uart=1
 dtoverlay=miniuart-bt
 ```
 
 Run the config utility and enable messages to the serial port:
-```
+```sh
 sudo raspi-config
 ```
 

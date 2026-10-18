@@ -7,7 +7,7 @@ metrics and the optional INA219 power measurement with `detect_litert.py` via
 `bench_common.py`, so the NPU and CPU numbers are directly comparable.
 
     python3 detect_torq.py \
-        --model ../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_8n_2.0.0_npu.vmfb \
+        --model ../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_od.vmfb \
         --labels ../models/Synaptics/yolov8-od-nano-320-int8-torq/labels.json \
         --source /dev/video0 --no-display --duration 60 --metrics-json torq_run.json
 
@@ -51,7 +51,7 @@ def parse_args():
     add_common_args(parser)
     parser.add_argument(
         "--model",
-        default="../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_8n_2.0.0_npu.vmfb",
+        default="../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_od.vmfb",
         help="Path to the Torq YOLOv8 .vmfb model.",
     )
     parser.add_argument(

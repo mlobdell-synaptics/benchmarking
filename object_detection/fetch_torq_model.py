@@ -14,7 +14,7 @@ import argparse
 from pathlib import Path
 
 REPO_ID = "Synaptics/yolov8-od-nano-320-int8-torq"
-NPU_MODEL = "yolo_8n_2.0.0_npu.vmfb"
+NPU_MODEL = "yolo_od.vmfb"
 CPU_MODEL = "yolov8n_cpu.vmfb"
 LABELS = "labels.json"
 

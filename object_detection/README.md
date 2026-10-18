@@ -78,7 +78,7 @@ For `detect_torq.py` (Astra SL2619 only):
 
 Install torq runtime.
 ```sh
-pip install https://github.com/synaptics-torq/torq-compiler/releases/download/v2.1.0/torq_runtime-2.1.0-cp312-cp312-manylinux_2_28_aarch64.whl
+pip install torq-runtime
 ```
 
 For `--power` on any script (INA219 over I2C):
@@ -163,7 +163,7 @@ On the Astra SL2619 use `--threads 2` (2 cores) and a `/dev/videoN` path for
 ## detect_torq.py  (Astra SL2619 Torq NPU)
 ```sh
 python3 detect_torq.py \
-    --model ../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_8n_2.0.0_npu.vmfb \
+    --model ../models/Synaptics/yolov8-od-nano-320-int8-torq/yolo_od.vmfb \
     --labels ../models/Synaptics/yolov8-od-nano-320-int8-torq/labels.json \
     --source /dev/video0 \
     --conf 0.25 --iou 0.45 \
@@ -219,7 +219,7 @@ Press `q` to quit the preview window; use `--no-display` for headless runs
 | `--labels PATH` | `labels.json` next to the script | Class names (`labels.json` or one name per line). |
 
 `--model` is per-script (`yolov8n.pt` / `yolov8n_int8.tflite` /
-`…/yolo_8n_2.0.0_npu.vmfb`). `detect_ultralytics.py` keeps its own `--conf`
+`…/yolo_od.vmfb`). `detect_ultralytics.py` keeps its own `--conf`
 (defaults to the Ultralytics model default) and does not take `--iou`/`--labels`.
 
 On the Astra boards, adb/serial shells already run as root, so `--quiesce-*`

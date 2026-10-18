@@ -15,11 +15,11 @@ import argparse
 import os
 from pathlib import Path
 
-# Add a Qwen entry here when its Torq VMFB is published.
+
 REPO_MAP = {
     "gemma3-it": "Synaptics/gemma-3-270m-it-torq",
-    "gemma3": "Synaptics/gemma-3-270m-torq",
-    "gemma3-it-q8": "Synaptics/gemma-3-270m-it-int8-dynamic-quantize-torq"
+    "gemma3-it-q8": "Synaptics/gemma-3-270m-it-int8-torq",
+    "gemma3-it-q4": "gemma-3-270-GPTQ-int4-it-torq",
 }
 
 # First set whose every file exists on the repo is downloaded. The primary
