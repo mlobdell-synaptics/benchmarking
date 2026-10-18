@@ -28,7 +28,7 @@ the Metal-support flag (unused by `llm_benchmark.py` as written, which
 hardcodes CPU-only execution).
 
 
-# Model Download and testing
+# CPU - Model Download and testing
 
 ## GGUF Q4_K_M (PTQ - Post Training Quantization)
 
@@ -51,7 +51,6 @@ python3 llm_benchmark.py \
     --questions questions.txt \
     --output raspi_cpux4_gemma3_270m_it_Q8.json
 ```
-
 
 ## GGUF Q8_0
 
