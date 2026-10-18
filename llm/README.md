@@ -27,6 +27,11 @@ actually takes effect there; see the comments in `requirements-macos.txt` for
 the Metal-support flag (unused by `llm_benchmark.py` as written, which
 hardcodes CPU-only execution).
 
+Set HuggingFace access token for downloads
+
+```sh
+export HF_TOKEN=...
+```
 
 # CPU - Model Download and testing
 
@@ -34,7 +39,7 @@ hardcodes CPU-only execution).
 
 Download the model
 ```sh
-wget https://huggingface.co/jaewoo49/gemm-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
+wget -P ./models https://huggingface.co/jaewoo49/gemma-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
 ```
 
 Test the model
