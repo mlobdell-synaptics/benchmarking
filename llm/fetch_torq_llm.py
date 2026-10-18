@@ -19,6 +19,7 @@ from pathlib import Path
 REPO_MAP = {
     "gemma3-it": "Synaptics/gemma-3-270m-it-torq",
     "gemma3-it-q8": "Synaptics/gemma-3-270m-it-int8-torq",
+    "gemma3-it-q8-dynamic": "Synaptics/gemma-3-270m-it-int8-dynamic-quantize-torq"
     "gemma3-it-q4": "Synaptics/gemma-3-270-GPTQ-int4-it-torq",
 }
 

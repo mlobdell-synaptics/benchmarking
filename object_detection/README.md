@@ -169,7 +169,7 @@ python3 detect_torq.py \
     --conf 0.25 --iou 0.45 \
     --duration 60 \
     --no-display \
-    --metrics-json torq_run.json
+    --metrics-json torq_yolo_od.json
 ```
 The script enables the NPU clock and pins the NPU to its max frequency for the
 run, restoring min on exit (`--no-npu-setup` to skip; needs root for the
@@ -181,16 +181,6 @@ export XDG_RUNTIME_DIR=/var/run/user/0
 export WAYLAND_DISPLAY=wayland-1
 ```
 
-## With power measurement (any script)
-```sh
-python3 detect_litert.py \
-    --model ../models/yolov8n_int8.tflite \
-    --no-display \
-    --duration 60 \
-    --power \
-    --idle-seconds 5 \
-    --power-csv power.csv
-```
 
 Press `q` to quit the preview window; use `--no-display` for headless runs
 (exit with Ctrl+C — the summary still prints).

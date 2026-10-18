@@ -39,29 +39,29 @@ export HF_TOKEN=...
 
 Download the model
 ```sh
-wget -P ./models https://huggingface.co/jaewoo49/gemma-3-270m-it-Q4_K_M-GGUF/resolve/main/gemma-3-270m-it-q4_k_m.gguf
+wget -P ./models https://huggingface.co/gguf-org/gemma-3-270m-it-gguf/resolve/main/gemma-3-270m-it-q4_k_m.gguf
 ```
 
 Test the model
 ```sh
 python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --model ../models/gemma-3-270m-it-q4_k_m.gguf \
     --threads 2 --context 256 --max-tokens 128 \
     --questions questions.txt \
-    --output raspi_cpux2_gemma3_270m_it_Q8.json
+    --output raspi_cpux2_gemma3_270m_it_q4_k_m.json
 
 python3 llm_benchmark.py \
-    --model ../models/gemma-3-270m-it-Q8_0.gguf \
+    --model ../models/gemma-3-270m-it-q4_k_m.gguf \
     --threads 4 --context 256 --max-tokens 128 \
     --questions questions.txt \
-    --output raspi_cpux4_gemma3_270m_it_Q8.json
+    --output raspi_cpux4_gemma3_270m_it_Q4_k_m.json
 ```
 
 ## GGUF Q8_0
 
 Download the model
 ```sh
-wget https://huggingface.co/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q8_0.gguf
+wget -P ./models https://huggingface.co/ggml-org/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q8_0.gguf
 ```
 
 Test the model
@@ -87,7 +87,7 @@ changes — just a BF16 weight file.
 Gemma 3 270M-it: bartowski publishes a real BF16 file (the `ggml-org` repo
 above only has Q8_0).
 ```sh
-wget https://huggingface.co/bartowski/google_gemma-3-270m-it-GGUF/resolve/main/google_gemma-3-270m-it-bf16.gguf
+wget -P ./models https://huggingface.co/bartowski/google_gemma-3-270m-it-GGUF/resolve/main/google_gemma-3-270m-it-bf16.gguf
 ```
 
 Run them the same way as any other GGUF (see Run, below):
@@ -108,7 +108,7 @@ python3 llm_benchmark.py \
 
 ## FP32 (full precision)
 
-FP32 is 2x BF16 and provides little accuracy improvement.
+FP32 is 2x BF16 and provides little accuracy improvement, however it runs more efficiently on Raspberry Pi. 
 
 ```sh
 git clone --depth 1 https://github.com/ggml-org/llama.cpp.git
