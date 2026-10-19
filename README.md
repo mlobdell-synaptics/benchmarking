@@ -1,4 +1,4 @@
-# Coralboard vs. Raspberry Pi 5 Benchmarking
+# Synaptics Coralboard SL vs. Raspberry Pi 5 Benchmarking
 
 
 > [!WARNING]
