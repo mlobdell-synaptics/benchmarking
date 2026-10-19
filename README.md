@@ -26,3 +26,9 @@ python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 pip install --upgrade pip
 ```
+
+## Jump to directories and view readme files
+
+- [object_detection/README.md](object_detection/README.md)
+
+- [llm/README.md](llm/README.md)

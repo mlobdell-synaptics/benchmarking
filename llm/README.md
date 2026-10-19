@@ -1,10 +1,12 @@
-# Setup 
+# LLM Benchmarks
 
-## Update target system & activate virtual environment
+## Setup 
+
+### Update target system & activate virtual environment
 
 See top level [README.md](../README.md).
 
-## Install dependencies
+### Install dependencies
 
 Pick the requirements file for your target:
 
@@ -33,9 +35,9 @@ Set HuggingFace access token for downloads
 export HF_TOKEN=...
 ```
 
-# CPU - Model Download and testing
+## CPU - Model Download and testing
 
-## GGUF Q4_K_M (PTQ - Post Training Quantization)
+### GGUF Q4_K_M (PTQ - Post Training Quantization)
 
 Download the model
 ```sh
@@ -57,7 +59,7 @@ python3 llm_benchmark.py \
     --output raspi_cpux4_gemma3_270m_it_Q4_k_m.json
 ```
 
-## GGUF Q8_0
+### GGUF Q8_0
 
 Download the model
 ```sh
@@ -79,7 +81,7 @@ python3 llm_benchmark.py \
     --output raspi_cpux4_gemma3_270m_it_Q8.json
 ```
 
-## GGUF BF16 (full precision)
+### GGUF BF16 (full precision)
 
 `llm_benchmark.py` takes any GGUF path, so a BF16 comparison run needs no code
 changes — just a BF16 weight file.
@@ -106,7 +108,7 @@ python3 llm_benchmark.py \
     --output raspi_cpux4_gemma3_270m_it_bf16.json
 ```
 
-## FP32 (full precision)
+### FP32 (full precision)
 
 FP32 is 2x BF16 and provides little accuracy improvement, however it runs more efficiently on Raspberry Pi. 
 
@@ -191,7 +193,7 @@ add if your account isn't already passwordless-sudo. `rfkill` (used by
 `--quiesce-wifi`) is tried unprivileged first and typically just works
 (seat-permitted via udev on Raspberry Pi OS Desktop).
 
-# Torq NPU (Astra SL2619)
+## Torq NPU (Astra SL2619)
 
 `llm_benchmark_torq.py` is the Torq-NPU counterpart of `llm_benchmark.py` — same
 metrics, same JSON report shape (plus `runtime: "torq"` and NPU-reported
@@ -199,7 +201,7 @@ metrics, same JSON report shape (plus `runtime: "torq"` and NPU-reported
 pre-compiled VMFB model; the Torq runner code is vendored under `torq_llm/`
 (from `torq-examples`).
 
-## Install
+### Install
 
 ```bash
 pip install --upgrade pip
@@ -208,8 +210,6 @@ pip install torq-runtime
 
 pip install -r requirements-astra-sl2610.txt
 ```
-
-## Download and Run
 
 
 ### BF16
