@@ -1,7 +1,6 @@
 # Dependencies for llm_benchmark_torq.py (Astra SL2619 Torq NPU).
 # The Torq runtime itself (torq_runtime + iree-runtime) is installed separately
 # from the wheel - see ../object_detection/README.md.
-numpy<2.0
 ml_dtypes
 tokenizers==0.23.1
 huggingface_hub

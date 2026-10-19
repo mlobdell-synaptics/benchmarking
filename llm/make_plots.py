@@ -5,7 +5,7 @@ Each column in the results CSV (one run: platform + engine + quant) is
 plotted as its own labeled series/point (scatter) or bar (bar chart).
 
 Usage:
-    python plot_tps_vs_power.py [path/to/results.csv] [-o scatter.png] [-b bar.png]
+    python make_plots.py [path/to/results.csv] [-p scatter.png] [-b bar.png]
 """
 import argparse
 import sys
@@ -106,6 +106,8 @@ def plot_scatter(
     ax.set_ylabel("Mean Tokens per Second", fontsize=12, color=INK)
     ax.set_title(title, fontsize=13, color=INK, pad=14)
     ax.margins(x=0.15, y=0.15)
+    ax.set_xlim(0, 6)
+    ax.set_ylim(0, 50)
 
     ax.grid(True, color=GRID, linewidth=0.8, zorder=0)
     for spine in ("top", "right"):
@@ -209,11 +211,6 @@ def main():
         help="Path to the benchmark results CSV (default: gemma_benchmarking_results_sept_7.csv)",
     )
     parser.add_argument(
-        "-o", "--output",
-        default="tokens_per_second_vs_power.png",
-        help="Scatter plot output image path (default: tokens_per_second_vs_power.png)",
-    )
-    parser.add_argument(
         "-b", "--bar-output",
         default="inferences_per_joule.png",
         help="Inferences-per-joule bar chart output image path (default: inferences_per_joule.png)",
@@ -242,11 +239,6 @@ def main():
         sys.exit(f"CSV file not found: {csv_path}")
 
     df = load_runs(csv_path)
-    plot_scatter(
-        df, "mean power (w)", "Mean Power (W)",
-        "Mean Tokens/Second vs Mean Power by Platform",
-        Path(args.output),
-    )
     plot_scatter(
         df, "net power(w)", "Net Power (W)",
         "Mean Tokens/Second vs Net Power by Platform",

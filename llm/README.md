@@ -243,6 +243,22 @@ python3 llm_benchmark_torq.py \
     --output torq_gemma3_it_q8.json
 ```
 
+Alternative - Dynamic Quantization
+
+```sh
+python3 fetch_torq_llm.py --model gemma3-it-q8-dynamic #Synaptics/gemma-3-270m-it-int8-dynamic-quantize-torq
+```
+temporary workaround: swap out token_embeddings.npy with one from the other int8 repo. 
+
+```sh
+python3 llm_benchmark_torq.py \
+    --model ../models/Synaptics/gemma-3-270m-it-int8-dynamic-quantize-torq \
+    --threads 2 \
+    --max-tokens 128 \
+    --questions questions.txt \
+    --output torq_gemma3_it_q8_dynamic.json
+```
+
 
 ### Q4
 

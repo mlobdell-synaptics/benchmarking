@@ -5,7 +5,7 @@ Each column in the results CSV (one run: platform + engine + quant) is
 plotted as its own labeled series/point (scatter) or bar (bar chart).
 
 Usage:
-    python plot_fps_vs_power.py [path/to/results.csv] [-o scatter.png] [-b bar.png]
+    python plot_fps_vs_power.py [path/to/results.csv] [-p scatter.png] [-b bar.png]
 """
 import argparse
 import re
@@ -14,6 +14,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import MultipleLocator
 
 # Fixed-order categorical palette (dataviz skill reference palette, light mode).
 CATEGORICAL_COLORS = [
@@ -82,6 +83,10 @@ def plot_scatter(
     x_label: str,
     title: str,
     out_path: Path,
+    y_max: float | None = None,
+    x_max: float = 6,
+    y_min: float = 0,
+    y_step: float | None = None,
 ) -> None:
     df = df.dropna(subset=[x_column])
     fig, ax = plt.subplots(figsize=(10, 7), facecolor=SURFACE)
@@ -113,6 +118,10 @@ def plot_scatter(
     ax.set_ylabel("Mean FPS", fontsize=12, color=INK)
     ax.set_title(title, fontsize=13, color=INK, pad=14)
     ax.margins(x=0.15, y=0.15)
+    ax.set_xlim(0, x_max)
+    ax.set_ylim(bottom=y_min, top=y_max)
+    if y_step is not None:
+        ax.yaxis.set_major_locator(MultipleLocator(y_step))
 
     ax.grid(True, color=GRID, linewidth=0.8, zorder=0)
     for spine in ("top", "right"):
@@ -212,11 +221,6 @@ def main():
         help="Path to the benchmark results CSV (default: yolo_benchmarking_results_sept_7.csv)",
     )
     parser.add_argument(
-        "-o", "--output",
-        default="fps_vs_power.png",
-        help="Scatter plot output image path (default: fps_vs_power.png)",
-    )
-    parser.add_argument(
         "-b", "--bar-output",
         default="inferences_per_joule.png",
         help="Bar chart output image path (default: inferences_per_joule.png)",
@@ -241,14 +245,10 @@ def main():
 
     df = load_runs(csv_path)
     plot_scatter(
-        df, "mean power (w)", "Mean Power (W)",
-        "Mean FPS vs Mean Power by Platform",
-        Path(args.output),
-    )
-    plot_scatter(
         df, "net power(w)", "Net Power (W)",
         "Mean FPS vs Net Power by Platform",
         Path(args.net_power_output),
+        y_max=120, x_max=5, y_min=40, y_step=10,
     )
     plot_bar(
         df, "Inferences per Joule", "Inferences per Joule",
