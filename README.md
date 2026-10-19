@@ -2,7 +2,8 @@
 
 
 > [!WARNING]
-> **Disclaimer:** This is for information only. It could be wrong.
+> **Disclaimer:** These benchmark scripts are provided "as is" for informational purposes only. Results depend on the specific hardware, software versions, models, and test conditions used, and may contain errors or not be reproducible elsewhere. Verify independently before relying on them for any decision. No warranty is given, and the authors accept no liability for their use.
+
 
 
 ## Update target system (Raspberry Pi 5 Only)
