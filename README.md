@@ -4,7 +4,8 @@
 > [!WARNING]
 > **Disclaimer:** These benchmark scripts are provided "as is" for informational purposes only. Results depend on the specific hardware, software versions, models, and test conditions used, and may contain errors or not be reproducible elsewhere. Verify independently before relying on them for any decision. No warranty is given, and the authors accept no liability for their use.
 
-
+> [!NOTE]
+> The benchmarking scripts include optional automatic power measurement using an external INA219 power measurement circuit. This feature has not been thoroughly tested and has not been used to generate results.
 
 ## Update target system (Raspberry Pi 5 Only)
 ```sh
